@@ -28,6 +28,13 @@
             <version>2.1.0</version>
         </dependency>
 
+        <!-- CNRI's Cordra REST client library in Java-->
+        <dependency>
+            <groupId>net.cnri.cordra</groupId>
+            <artifactId>cordra-client</artifactId>
+            <version>2.0.0</version>
+        </dependency>
+
         <!-- Lucene QueryParsers module to help building searches in CORDRA-->
         <dependency>
             <groupId>org.apache.lucene</groupId>

@@ -4,6 +4,10 @@ import com.google.common.collect.MapDifference;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import eu.dissco.digitisers.utils.JsonUtils;
+import net.cnri.cordra.api.CordraClient;
+import net.cnri.cordra.api.CordraException;
+import net.cnri.cordra.api.HttpCordraClient;
+import net.cnri.cordra.api.VersionInfo;
 import net.dona.doip.DoipRequestHeaders;
 import net.dona.doip.InDoipMessage;
 import net.dona.doip.client.*;
@@ -30,6 +34,7 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
 
     private DigitalObjectRepositoryInfo digitalObjectRepositoryInfo;
     private DoipClient doipClient;
+    private CordraClient restClient;
     private AuthenticationInfo authInfo;
     private ServiceInfo serviceInfo;
 
@@ -74,17 +79,34 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
         this.serviceInfo = serviceInfo;
     }
 
-    //private constructor to avoid client applications to use constructor
-    //as we use the singleton pattern
-    private DigitalObjectRepositoryClient(DigitalObjectRepositoryInfo digitalObjectRepositoryInfo) throws URISyntaxException, UnknownHostException {
-        this.setDigitalObjectRepositoryInfo(digitalObjectRepositoryInfo);
-        this.setDoipClient(new DoipClient());
-        this.setAuthInfo(new PasswordAuthenticationInfo(this.getDigitalObjectRepositoryInfo().getUsername(), this.getDigitalObjectRepositoryInfo().getPassword()));
-        this.setServiceInfo(new ServiceInfo(this.getDigitalObjectRepositoryInfo().getServiceId(), this.getDigitalObjectRepositoryInfo().getHostAddress(), this.getDigitalObjectRepositoryInfo().getDoipPort()));
-        this.mapSchemasRepository=new TreeMap<String,DigitalObject>();
+    public Map<String, DigitalObject> getMapSchemasRepository() {
+        return mapSchemasRepository;
     }
 
-    public static DigitalObjectRepositoryClient getInstance(DigitalObjectRepositoryInfo digitalObjectRepositoryInfo) throws URISyntaxException, UnknownHostException {
+    public void setMapSchemasRepository(Map<String, DigitalObject> mapSchemasRepository) {
+        this.mapSchemasRepository = mapSchemasRepository;
+    }
+
+    protected CordraClient getRestClient() {
+        return restClient;
+    }
+
+    protected void setRestClient(CordraClient restClient) {
+        this.restClient = restClient;
+    }
+
+    //private constructor to avoid client applications to use constructor
+    //as we use the singleton pattern
+    private DigitalObjectRepositoryClient(DigitalObjectRepositoryInfo digitalObjectRepositoryInfo) throws URISyntaxException, UnknownHostException, CordraException {
+        this.digitalObjectRepositoryInfo=digitalObjectRepositoryInfo;
+        this.doipClient=new DoipClient();
+        this.authInfo= new PasswordAuthenticationInfo(digitalObjectRepositoryInfo.getUsername(), digitalObjectRepositoryInfo.getPassword());
+        this.serviceInfo = new ServiceInfo(digitalObjectRepositoryInfo.getServiceId(), digitalObjectRepositoryInfo.getHostAddress(), digitalObjectRepositoryInfo.getDoipPort());
+        this.mapSchemasRepository=new TreeMap<String,DigitalObject>();
+        this.restClient = new HttpCordraClient(digitalObjectRepositoryInfo.getUrl(),digitalObjectRepositoryInfo.getUsername(),digitalObjectRepositoryInfo.getPassword());
+    }
+
+    public static DigitalObjectRepositoryClient getInstance(DigitalObjectRepositoryInfo digitalObjectRepositoryInfo) throws URISyntaxException, UnknownHostException, CordraException {
         if (instance==null){
             instance = new DigitalObjectRepositoryClient(digitalObjectRepositoryInfo);
         }
@@ -148,8 +170,8 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
      */
     public DigitalObject getSchemaByName(String name) throws DigitalObjectRepositoryException {
         DigitalObject schema = null;
-        if (this.mapSchemasRepository.containsKey(name)){
-            schema = this.mapSchemasRepository.get(name);
+        if (this.getMapSchemasRepository().containsKey(name)){
+            schema = this.getMapSchemasRepository().get(name);
         } else{
             String query = "type:Schema AND /name:" + escapeQueryParamValue(name);
             List<DigitalObject> searchResults = this.searchAll(query);
@@ -158,7 +180,7 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
             } else{
                 schema = null;
             }
-            this.mapSchemasRepository.put(name,schema);
+            this.getMapSchemasRepository().put(name,schema);
         }
         return schema;
     }
@@ -363,6 +385,15 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
     }
 
     /***
+     * Funtion that list the operations available in the digital repository
+     * @return list the operations available in the digital repository
+     * @throws DigitalObjectRepositoryException
+     */
+    public  List<String> listOperations() throws DigitalObjectRepositoryException {
+        return this.listOperations(this.getDigitalObjectRepositoryInfo().getServiceId());
+    }
+
+    /***
      * Function that saves a digital specimen in the repository if the digital specimen passed as parameter is valid
      * according to the latest digital specimen schema.
      * If the digital specimen doesn't exist in the repository, this function will create it, and if the digital specimen
@@ -519,6 +550,48 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
         return JsonUtils.validateJsonAgainstSchema(dsJsonContent,dsSchemaJsonContent,checkRequiredId);
     }
 
+    /***
+     * Function that get the list of version of a given object
+     * Note: This function use the CORDRA REST API as this functionality is not provided in DOIP yet
+     * @param objectId
+     * @return List of versions (digital objects) of a given object
+     * @throws DigitalObjectRepositoryException
+     */
+    public List<DigitalObject> getVersionsFor(String objectId) throws DigitalObjectRepositoryException{
+        try {
+            List<DigitalObject> listDigitalObjects = null;
+            List<VersionInfo> versions = this.getRestClient().getVersionsFor(objectId);
+
+            if (versions!=null && versions.size()>0){
+                listDigitalObjects = new ArrayList<>();
+                for (VersionInfo version:versions) {
+                    DigitalObject digitalObject = this.retrieve(version.id);
+                    if (digitalObject!=null) listDigitalObjects.add(digitalObject);
+                }
+            }
+            return listDigitalObjects;
+        } catch (CordraException e) {
+            throw DigitalObjectRepositoryException.convertCordraException(e);
+        }
+    }
+
+    /**
+     * Function that creates a version of the digital object id received as parameter
+     * Note: Note: This function use the CORDRA REST API as this functionality is not provided in DOIP yet
+     * @param objectId
+     * @return Digital object resulting of the versioning
+     * @throws DigitalObjectRepositoryException
+     */
+    public DigitalObject publishVersion(String objectId) throws DigitalObjectRepositoryException {
+        try {
+            DigitalObject digitalObject=null;
+            VersionInfo version = this.getRestClient().publishVersion(objectId,null,false);
+            if (version!=null) digitalObject = this.retrieve(version.id);
+            return digitalObject;
+        } catch (CordraException e) {
+            throw DigitalObjectRepositoryException.convertCordraException(e);
+        }
+    }
 
     private List<DigitalObject> searchAll(String query,Integer pageNumber,Integer pageSize) throws DigitalObjectRepositoryException{
         List<DigitalObject> results = new ArrayList<DigitalObject>();

@@ -1,5 +1,6 @@
 package eu.dissco.digitisers.clients.digitalObjectRepository;
 
+import net.cnri.cordra.api.CordraException;
 import net.dona.doip.client.DoipException;
 
 public class DigitalObjectRepositoryException extends Exception {
@@ -31,5 +32,9 @@ public class DigitalObjectRepositoryException extends Exception {
 
     public static DigitalObjectRepositoryException convertDoipException(DoipException doipException){
         return new DigitalObjectRepositoryException(doipException.getStatusCode(), doipException.getMessage(),doipException.getCause());
+    }
+
+    public static DigitalObjectRepositoryException convertCordraException(CordraException codraException){
+        return new DigitalObjectRepositoryException(null, codraException.getMessage(),codraException.getCause());
     }
 }

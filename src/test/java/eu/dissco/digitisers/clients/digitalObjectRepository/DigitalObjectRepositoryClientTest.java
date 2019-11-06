@@ -44,6 +44,14 @@ public class DigitalObjectRepositoryClientTest {
         assertTrue("Protocol should be >=2.0",protocolVersion>=2.0);
     }
 
+
+    @Test
+    public void testDoipServerListOperations() throws DigitalObjectRepositoryException {
+        List<String> operations = digitalObjectRepositoryClient.listOperations();
+        operations.forEach(System.out::println);
+    }
+    
+
     @Test
     public void testGetAllSchemas() throws DigitalObjectRepositoryException{
         List<DigitalObject> schemas = digitalObjectRepositoryClient.getAllSchemas();
@@ -270,6 +278,19 @@ public class DigitalObjectRepositoryClientTest {
         assertTrue("All dummy digital specimens should have been deleted", listDsAfterDeletion.size()==0);
     }
 
+    @Test
+    public void getVersionsFor() throws DigitalObjectRepositoryException{
+        String objectID="prov.994/86f7e437faa5a7fce15d";
+        List<DigitalObject> listVersions = digitalObjectRepositoryClient.getVersionsFor(objectID);
+        assertTrue("List of version should be more than 1 ", listVersions.size()>1);
+    }
+
+    @Test
+    public void publishVersion() throws DigitalObjectRepositoryException{
+        String objectID="prov.994/86f7e437faa5a7fce15d";
+        DigitalObject version = digitalObjectRepositoryClient.publishVersion(objectID);
+        assertEquals("The version should have been created correctly",objectID,version.attributes.getAsJsonObject("metadata").get("versionOf").getAsString());
+    }
 
     private DigitalObject createDummyDS(){
         JsonObject dsContent = new JsonObject();
