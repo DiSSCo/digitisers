@@ -1,0 +1,37 @@
+{
+	"creator": "dissco",
+	"notificationAddresses": [
+	],
+	"sendNotification": false,
+	"format": "DWCA",
+	"predicate": {
+		"type": "and",
+		"predicates": [
+			{
+				"type": "equals",
+				"key": "TAXON_KEY",
+				"value": ""
+			},
+			{
+				"type": "or",
+				"predicates": [
+					{
+						"type": "equals",
+						"key": "BASIS_OF_RECORD",
+						"value": "PRESERVED_SPECIMEN"
+					},
+					{
+						"type": "equals",
+						"key": "BASIS_OF_RECORD",
+						"value": "LIVING_SPECIMEN"
+					},
+					{
+						"type": "equals",
+						"key": "BASIS_OF_RECORD",
+						"value": "FOSSIL_SPECIMEN"
+					}
+				]
+			}
+		]
+	}
+}

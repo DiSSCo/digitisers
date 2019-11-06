@@ -1,0 +1,231 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>eu.dissco</groupId>
+    <artifactId>digitisers</artifactId>
+    <version>1.0-SNAPSHOT</version>
+
+
+    <repositories>
+        <repository>
+            <id>gbif</id>
+            <url>http://repository.gbif.org/content/groups/gbif</url>
+        </repository>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+    </repositories>
+
+    <dependencies>
+        <!--DOIP Software Development Kit that implements DOIP v2 Specification.-->
+        <dependency>
+            <groupId>net.dona.doip</groupId>
+            <artifactId>doip-sdk</artifactId>
+            <version>2.1.0</version>
+        </dependency>
+
+        <!-- Lucene QueryParsers module to help building searches in CORDRA-->
+        <dependency>
+            <groupId>org.apache.lucene</groupId>
+            <artifactId>lucene-queryparser</artifactId>
+            <version>8.2.0</version>
+        </dependency>
+
+        <!-- Gbif library to read and write dwc-a files-->
+        <dependency>
+            <groupId>org.gbif</groupId>
+            <artifactId>dwca-io</artifactId>
+            <version>2.7-SNAPSHOT</version>
+        </dependency>
+
+        <!-- Gbif API library -->
+        <!--
+        <dependency>
+            <groupId>org.gbif</groupId>
+            <artifactId>gbif-api</artifactId>
+            <version>0.94</version>
+        </dependency>
+        -->
+
+        <!-- Apache HttpComponents Client to make http requests to external APIs -->
+        <dependency>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpclient</artifactId>
+            <version>4.5.10</version>
+        </dependency>
+
+        <!-- ARQ is a SPARQL 1.1 query engine for Apache Jena -->
+        <dependency>
+            <groupId>org.apache.jena</groupId>
+            <artifactId>jena-arq</artifactId>
+            <version>3.13.1</version>
+        </dependency>
+
+        <!-- Library to work with JSON objects-->
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.8.6</version>
+        </dependency>
+
+        <!--library that adds some very useful features to Gson-->
+        <dependency>
+            <groupId>io.gsonfire</groupId>
+            <artifactId>gson-fire</artifactId>
+            <version>1.8.3</version>
+        </dependency>
+
+        <!-- Library to execute json path -->
+        <dependency>
+            <groupId>com.jayway.jsonpath</groupId>
+            <artifactId>json-path</artifactId>
+            <version>2.4.0</version>
+        </dependency>
+
+        <!-- Library to validate json against its schema -->
+        <dependency>
+            <groupId>com.github.everit-org.json-schema</groupId>
+            <artifactId>org.everit.json.schema</artifactId>
+            <version>1.12.0</version>
+        </dependency>
+
+
+        <!-- MaxMind GeoIP2 API to resolve location of IP addresses-->
+        <dependency>
+            <groupId>com.maxmind.geoip2</groupId>
+            <artifactId>geoip2</artifactId>
+            <version>2.8.0</version>
+        </dependency>
+
+        <!--Suite of core and expanded libraries that include utility classes, google's collections, io classes, and much much more.-->
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>28.1-jre</version>
+        </dependency>
+
+        <!-- Library for parsing command line options passed to programs -->
+        <dependency>
+            <groupId>commons-cli</groupId>
+            <artifactId>commons-cli</artifactId>
+            <version>1.4</version>
+        </dependency>
+
+        <!-- Library with reusable static utility methods, chiefly concerned with adding value to the java.lang classes-->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>3.7</version>
+        </dependency>
+
+        <!-- Library to assist in the reading of configuration/preferences files in various formats-->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-configuration2</artifactId>
+            <version>2.6</version>
+        </dependency>
+
+        <!-- Library that provides an easy-to-use but flexible wrapper around reflection and introspection-->
+        <dependency>
+            <groupId>commons-beanutils</groupId>
+            <artifactId>commons-beanutils</artifactId>
+            <version>1.9.4</version>
+        </dependency>
+
+        <!-- Library provides the building blocks for both client side validation and server side data validation -->
+        <dependency>
+            <groupId>commons-validator</groupId>
+            <artifactId>commons-validator</artifactId>
+            <version>1.6</version>
+        </dependency>
+
+        <!-- logback-classic module use for logging-->
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.2.3</version>
+        </dependency>
+
+        <!-- Junit library -->
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.12</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- swagger-annotations for ebi client generated from openapi description -->
+        <dependency>
+            <groupId>io.swagger</groupId>
+            <artifactId>swagger-annotations</artifactId>
+            <version>1.5.24</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.code.findbugs</groupId>
+            <artifactId>jsr305</artifactId>
+            <version>3.0.2</version>
+        </dependency>
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp</artifactId>
+            <version>4.2.2</version>
+        </dependency>
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>logging-interceptor</artifactId>
+            <version>4.2.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.threeten</groupId>
+            <artifactId>threetenbp</artifactId>
+            <version>1.4.0</version>
+        </dependency>
+        <dependency>
+            <groupId>javax.annotation</groupId>
+            <artifactId>jsr250-api</artifactId>
+            <version>1.0</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.8.1</version>
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <version>3.1.1</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>eu.dissco.digitisers.DiscoDigitiser</mainClass>
+                        </manifest>
+                    </archive>
+                    <descriptorRefs>
+                        <descriptorRef>jar-with-dependencies</descriptorRef>
+                    </descriptorRefs>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

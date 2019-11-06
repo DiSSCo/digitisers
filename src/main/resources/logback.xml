@@ -1,0 +1,29 @@
+<configuration>
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS zzz} [%thread] %-5level %logger - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+        <file>digitisation.log</file>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS zzz} [%thread] %-5level %logger - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!--Disable log for class org.gbif.utils.file.FileUtils, as it raise unnecessary error in method gnuSortAvailable: Cannot run program "/bin/sh"  -->
+    <logger name="org.gbif.utils.file.FileUtils" level="OFF"/>
+
+    <!--Disable log messages with level less than error in some classes-->
+    <logger name="org.gbif.dwc.terms.TermFactory" level="ERROR"/>
+    <logger name="org.gbif.dwc.meta.MetaXMLSaxHandler" level="ERROR"/>
+    <logger name="org.apache.http.client.protocol.ResponseProcessCookies" level="ERROR"/>
+
+
+    <root level="info">
+        <appender-ref ref="FILE" />
+        <appender-ref ref="STDOUT" />
+    </root>
+</configuration>
