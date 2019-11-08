@@ -13,6 +13,7 @@ import eu.dissco.digitisers.clients.gbif.GbifClient;
 import eu.dissco.digitisers.clients.gbif.GbifInfo;
 import eu.dissco.digitisers.clients.misc.CountryClient;
 import eu.dissco.digitisers.clients.wiki.*;
+import eu.dissco.digitisers.utils.EmailUtils;
 import eu.dissco.digitisers.utils.FileUtils;
 import eu.dissco.digitisers.utils.NetUtils;
 import net.dona.doip.client.DigitalObject;
@@ -29,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -65,7 +67,7 @@ public abstract class DiscoDigitiser {
             DigitalObjectRepositoryClient digitalObjectRepositoryClient = DigitalObjectRepositoryClient.getInstance(digitalObjectRepositoryInfo);
             this.digitalObjectRepositoryClient=digitalObjectRepositoryClient;
         } catch (Exception e){
-            System.err.println(e.getMessage());
+            this.logger.error(e.getMessage());
         }
     }
 
@@ -90,6 +92,8 @@ public abstract class DiscoDigitiser {
      * @return
      */
     public List<DigitalObject> startDigitisation(List<String> args){
+        LocalDateTime startDateTime = LocalDateTime.now();
+
         List<DigitalObject> listDsSaved = new ArrayList<DigitalObject>();
         //Read data from source (it could be a dwc-a file, a gbif download request, etc)
         List<DigitalObject> listDsFromSource = this.readDigitalSpecimensData(args);
@@ -108,6 +112,12 @@ public abstract class DiscoDigitiser {
 
         this.getLogger().info("Digitisation completed.");
         this.reportResultDigitisation(listDsFromSource, listDsSaved);
+
+        LocalDateTime endDateTime= LocalDateTime.now();
+        List<String> emailAddresses = this.getConfig().getList(String.class,"digitiser.sendDigitisationResultsByEmailTo");
+        if (emailAddresses.size()>0){
+            boolean emailSent = EmailUtils.sendResultDigitiserExecution(startDateTime,endDateTime,emailAddresses);
+        }
 
         return listDsSaved;
     }
