@@ -6,8 +6,12 @@
         </encoder>
     </appender>
 
-    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+    <appender name="TIME_BASED_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>digitisation.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- daily rollover -->
+            <fileNamePattern>digitisation_%d{yyyy-MM-dd}.zip</fileNamePattern>
+        </rollingPolicy>
         <encoder>
             <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS zzz} [%thread] %-5level %logger - %msg%n</pattern>
         </encoder>
@@ -20,10 +24,14 @@
     <logger name="org.gbif.dwc.terms.TermFactory" level="ERROR"/>
     <logger name="org.gbif.dwc.meta.MetaXMLSaxHandler" level="ERROR"/>
     <logger name="org.apache.http.client.protocol.ResponseProcessCookies" level="ERROR"/>
+    <logger name="org.apache.commons.beanutils.FluentPropertyBeanIntrospector" level="ERROR"/>
+
+    <logger name="org.simplejavamail" level="INFO"/>
+    <logger name="org.simplejavamail.mailer.internal.socks" level="WARN"/>
 
 
     <root level="info">
         <appender-ref ref="STDOUT" />
-        <appender-ref ref="FILE" />
+        <appender-ref ref="TIME_BASED_FILE" />
     </root>
 </configuration>
