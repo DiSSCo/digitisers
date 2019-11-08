@@ -1,6 +1,7 @@
 package eu.dissco.digitisers.clients.digitalObjectRepository;
 
 import com.google.common.collect.MapDifference;
+import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import eu.dissco.digitisers.utils.JsonUtils;
@@ -439,17 +440,7 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
 
 
     public boolean haveDigitalSpecimensGotSameContent(DigitalObject leftDs, DigitalObject rightDs){
-        JsonObject leftDsContent = leftDs.attributes.getAsJsonObject("content");
-        JsonObject rightDsContent = rightDs.attributes.getAsJsonObject("content");
-        //Exclude DS ids for comparison
-        String leftDsId = leftDsContent.has("id")?leftDsContent.get("id").getAsString():null;
-        String rightDsId = rightDsContent.has("id")?rightDsContent.get("id").getAsString():null;
-        leftDsContent.remove("id");
-        rightDsContent.remove("id");
-        MapDifference<String, Object> comparisonResult = JsonUtils.compareJsonElements(leftDsContent,rightDsContent);
-        //Add the DS ids back to the content
-        if (StringUtils.isNotBlank(leftDsId)) leftDsContent.addProperty("id",leftDsId);
-        if (StringUtils.isNotBlank(rightDsId)) rightDsContent.addProperty("id",rightDsId);
+        MapDifference<String, Object> comparisonResult = this.compareContentDigitalObjects(leftDs,rightDs);
         return comparisonResult.areEqual();
     }
 
@@ -554,22 +545,87 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
      * Function that get the list of version of a given object
      * Note: This function use the CORDRA REST API as this functionality is not provided in DOIP yet
      * @param objectId
-     * @return List of versions (digital objects) of a given object
+     * @return List of versions (digital objects) of a given object. The list of versions is sorted from the oldest to the most recent
      * @throws DigitalObjectRepositoryException
      */
-    public List<DigitalObject> getVersionsFor(String objectId) throws DigitalObjectRepositoryException{
+    public List<DigitalObject> getVersionsOfObject(String objectId) throws DigitalObjectRepositoryException{
         try {
             List<DigitalObject> listDigitalObjects = null;
             List<VersionInfo> versions = this.getRestClient().getVersionsFor(objectId);
-
             if (versions!=null && versions.size()>0){
                 listDigitalObjects = new ArrayList<>();
+                DigitalObject previousVersion = null;
+                Gson gson = new Gson();
                 for (VersionInfo version:versions) {
                     DigitalObject digitalObject = this.retrieve(version.id);
-                    if (digitalObject!=null) listDigitalObjects.add(digitalObject);
+                    MapDifference<String, Object> comparisonResult = null;
+                    if (previousVersion!=null){
+                        comparisonResult = this.compareContentDigitalObjects(previousVersion,digitalObject);
+                    }
+                    digitalObject.attributes.add("comparisonAgainstPreviousVersion",gson.toJsonTree(comparisonResult));
+                    previousVersion=digitalObject;
+                    listDigitalObjects.add(digitalObject);
                 }
             }
             return listDigitalObjects;
+        } catch (CordraException e) {
+            throw DigitalObjectRepositoryException.convertCordraException(e);
+        }
+    }
+
+
+    /***
+     * Function that get the object as it was the the time specified
+     * Note: This function use the CORDRA REST API as this functionality is not provided in DOIP yet
+     * @param objectId
+     * @return List of versions (digital objects) of a given object
+     * @throws DigitalObjectRepositoryException
+     */
+    public DigitalObject getVersionOfObjectAtGivenTime(String objectId, LocalDateTime datetime, ZoneId zoneId) throws DigitalObjectRepositoryException{
+        try {
+            DigitalObject digitalObjectAtGivenTime = null;
+            List<VersionInfo> versions = this.getRestClient().getVersionsFor(objectId);
+
+            if (versions!=null && versions.size()>0){
+                if (datetime==null){
+                    datetime = LocalDateTime.now();
+                    zoneId = ZoneId.systemDefault();
+                }
+                Long datetimeEpoch = datetime.atZone(zoneId).toInstant().toEpochMilli();
+
+                //The list of versions is sorted from the oldest to the most recent
+                int versionPos=-1;
+                for (VersionInfo version:versions) {
+                    if (version.publishedOn!=null && version.publishedOn>datetimeEpoch){
+                        break;
+                    } else{
+                        versionPos++;
+                    }
+                }
+
+                if (versionPos!=-1){
+                    digitalObjectAtGivenTime = this.retrieve(versions.get(versionPos).id);
+                } else{
+                    //The search date is before the first version was created. Although it is still possible that the object
+                    // existed at that time, as we only create the version just before the first modification is done
+                    DigitalObject firstVersionObject = this.retrieve(versions.get(0).id);
+                    if (firstVersionObject.attributes.getAsJsonObject("metadata").get("createdOn").getAsLong()<=datetimeEpoch){
+                        digitalObjectAtGivenTime = firstVersionObject;
+                    }
+                }
+
+                if (digitalObjectAtGivenTime!=null){
+                    //Calculate differences with current version
+                    MapDifference<String, Object> comparisonResult = null;
+                    if (!digitalObjectAtGivenTime.id.equalsIgnoreCase(objectId)){
+                        DigitalObject currentObject = this.retrieve(objectId);
+                        comparisonResult = this.compareContentDigitalObjects(digitalObjectAtGivenTime,currentObject);
+                    }
+                    Gson gson = new Gson();
+                    digitalObjectAtGivenTime.attributes.add("comparisonAgainstCurrentVersion",gson.toJsonTree(comparisonResult));
+                }
+            }
+            return digitalObjectAtGivenTime;
         } catch (CordraException e) {
             throw DigitalObjectRepositoryException.convertCordraException(e);
         }
@@ -648,6 +704,21 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
 
     private String escapeQueryParamValue(String paramValue){
         return "\"" + QueryParserBase.escape(paramValue) + "\"";
+    }
+
+    private MapDifference<String, Object> compareContentDigitalObjects(DigitalObject leftDs, DigitalObject rightDs){
+        JsonObject leftDsContent = leftDs.attributes.getAsJsonObject("content");
+        JsonObject rightDsContent = rightDs.attributes.getAsJsonObject("content");
+        //Exclude DS ids for comparison
+        String leftDsId = leftDsContent.has("id")?leftDsContent.get("id").getAsString():null;
+        String rightDsId = rightDsContent.has("id")?rightDsContent.get("id").getAsString():null;
+        leftDsContent.remove("id");
+        rightDsContent.remove("id");
+        MapDifference<String, Object> comparisonResult = JsonUtils.compareJsonElements(leftDsContent,rightDsContent);
+        //Add the DS ids back to the content
+        if (StringUtils.isNotBlank(leftDsId)) leftDsContent.addProperty("id",leftDsId);
+        if (StringUtils.isNotBlank(rightDsId)) rightDsContent.addProperty("id",rightDsId);
+        return comparisonResult;
     }
 
 

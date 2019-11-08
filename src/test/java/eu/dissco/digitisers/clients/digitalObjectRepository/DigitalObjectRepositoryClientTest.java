@@ -7,16 +7,19 @@ import org.apache.commons.configuration2.Configuration;
 import org.apache.lucene.queryparser.classic.QueryParserBase;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.*;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.UUID;
 
 import static org.junit.Assert.*;
 
+@Ignore
 public class DigitalObjectRepositoryClientTest {
 
     private final static Logger logger = LoggerFactory.getLogger(DigitalObjectRepositoryClientTest.class);
@@ -279,10 +282,58 @@ public class DigitalObjectRepositoryClientTest {
     }
 
     @Test
-    public void getVersionsFor() throws DigitalObjectRepositoryException{
+    public void getVersionsOfObject() throws DigitalObjectRepositoryException{
         String objectID="prov.994/86f7e437faa5a7fce15d";
-        List<DigitalObject> listVersions = digitalObjectRepositoryClient.getVersionsFor(objectID);
+        List<DigitalObject> listVersions = digitalObjectRepositoryClient.getVersionsOfObject(objectID);
         assertTrue("List of version should be more than 1 ", listVersions.size()>1);
+    }
+
+    @Test
+    public void getVersionOfObjectAtGivenTime_pastVersion() throws DigitalObjectRepositoryException{
+        String objectID="prov.994/86f7e437faa5a7fce15d";
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        LocalDateTime dateTime = LocalDateTime.parse("2019-11-06 17:01:02",formatter);
+        ZoneId zoneId = ZoneId.systemDefault(); // or: ZoneId.of("Europe/London");
+
+        DigitalObject digitalObject = digitalObjectRepositoryClient.getVersionOfObjectAtGivenTime(objectID,dateTime,zoneId);
+        assertEquals("The id of the version should be","prov.994/845dbdafcc184cd0ddea",digitalObject.id);
+        assertEquals("Content.name should be","c",digitalObject.attributes.getAsJsonObject("content").get("name").getAsString());
+    }
+
+    @Test
+    public void getVersionOfObjectAtGivenTime_currentVersion() throws DigitalObjectRepositoryException{
+        String objectID="prov.994/86f7e437faa5a7fce15d";
+        LocalDateTime dateTime = LocalDateTime.now();
+        ZoneId zoneId = ZoneId.systemDefault(); // or: ZoneId.of("Europe/London");
+
+        DigitalObject digitalObject = digitalObjectRepositoryClient.getVersionOfObjectAtGivenTime(objectID,dateTime,zoneId);
+        assertEquals("The id of the version should be","prov.994/86f7e437faa5a7fce15d",digitalObject.id);
+        assertEquals("Content.name should be","d",digitalObject.attributes.getAsJsonObject("content").get("name").getAsString());
+    }
+
+    @Test
+    public void getVersionObjectAtGivenTime_dateBeforeObjectWasCreated() throws DigitalObjectRepositoryException{
+        String objectID="prov.994/86f7e437faa5a7fce15d";
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        LocalDateTime dateTime = LocalDateTime.parse("2019-11-01 00:00:00",formatter);
+        ZoneId zoneId = ZoneId.systemDefault(); // or: ZoneId.of("Europe/London");
+
+        DigitalObject digitalObject = digitalObjectRepositoryClient.getVersionOfObjectAtGivenTime(objectID,dateTime,zoneId);
+        assertNull("Object shouldn't exist at that time",digitalObject);
+    }
+
+    @Test
+    public void getVersionOfObjectAtGivenTime_dateBeforeFirstVersionWasMadeButAfterObjectWasCreated() throws DigitalObjectRepositoryException{
+        //A version of the object is created just before modifying the object, so it is still possible to try to
+        //get the status of the object after it was created but before is was modified for the first time
+        String objectID="prov.994/86f7e437faa5a7fce15d";
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        LocalDateTime dateTime = LocalDateTime.parse("2019-11-06 16:08:35",formatter);
+        ZoneId zoneId = ZoneId.systemDefault(); // or: ZoneId.of("Europe/London");
+
+        DigitalObject digitalObject = digitalObjectRepositoryClient.getVersionOfObjectAtGivenTime(objectID,dateTime,zoneId);
+        assertEquals("The id of the version should be","prov.994/586023191257543c91d6",digitalObject.id);
+        assertEquals("Content.name should be","a",digitalObject.attributes.getAsJsonObject("content").get("name").getAsString());
     }
 
     @Test
