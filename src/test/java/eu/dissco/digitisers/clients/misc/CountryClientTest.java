@@ -3,10 +3,14 @@ package eu.dissco.digitisers.clients.misc;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.junit.Assert.*;
 
 public class CountryClientTest {
+
+    private static final Logger logger = LoggerFactory.getLogger(CountryClientTest.class);
 
     private static CountryClient countryClient;
 
@@ -33,4 +37,5 @@ public class CountryClientTest {
         String country = countryClient.getCountryNameByCountryCode(countryCode);
         assertNull("The country shouldn't exist", country);
     }
+
 }

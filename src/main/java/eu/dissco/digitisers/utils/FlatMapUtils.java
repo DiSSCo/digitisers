@@ -1,5 +1,8 @@
 package eu.dissco.digitisers.utils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.AbstractMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -7,15 +10,17 @@ import java.util.Map;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-public final class FlatMapUtil {
+public final class FlatMapUtils {
 
-    private FlatMapUtil() {
+    private final static Logger logger = LoggerFactory.getLogger(FlatMapUtils.class);
+
+    private FlatMapUtils() {
         throw new AssertionError("No instances for you!");
     }
 
     public static Map<String, Object> flatten(Map<String, Object> map) {
         return map.entrySet().stream()
-                .flatMap(FlatMapUtil::flatten)
+                .flatMap(FlatMapUtils::flatten)
                 .collect(LinkedHashMap::new, (m, e) -> m.put("/" + e.getKey(), e.getValue()), LinkedHashMap::putAll);
     }
 
@@ -33,7 +38,7 @@ public final class FlatMapUtil {
             List<?> list = (List<?>) entry.getValue();
             return IntStream.range(0, list.size())
                     .mapToObj(i -> new AbstractMap.SimpleEntry<String, Object>(entry.getKey() + "/" + i, list.get(i)))
-                    .flatMap(FlatMapUtil::flatten);
+                    .flatMap(FlatMapUtils::flatten);
         }
 
         return Stream.of(entry);

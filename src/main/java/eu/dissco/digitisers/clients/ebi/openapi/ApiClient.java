@@ -24,6 +24,8 @@ import okhttp3.logging.HttpLoggingInterceptor;
 import okhttp3.logging.HttpLoggingInterceptor.Level;
 import okio.BufferedSink;
 import okio.Okio;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.threeten.bp.LocalDate;
 import org.threeten.bp.OffsetDateTime;
 import org.threeten.bp.format.DateTimeFormatter;
@@ -54,6 +56,8 @@ import eu.dissco.digitisers.clients.ebi.openapi.auth.HttpBearerAuth;
 import eu.dissco.digitisers.clients.ebi.openapi.auth.ApiKeyAuth;
 
 public class ApiClient {
+
+    private final static Logger logger = LoggerFactory.getLogger(ApiClient.class);
 
     private String basePath = "https://www.ebi.ac.uk/ebisearch/ws/rest";
     private boolean debugging = false;
@@ -122,7 +126,7 @@ public class ApiClient {
                 }
             });
         } catch (NoSuchAlgorithmException | KeyManagementException e) {
-            System.out.println(e.getMessage());
+           logger.error(e.getMessage());
         }
 
         httpClient = builder.build();

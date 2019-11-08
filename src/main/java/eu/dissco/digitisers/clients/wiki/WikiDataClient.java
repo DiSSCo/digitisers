@@ -225,7 +225,7 @@ public class WikiDataClient extends WikiClient{
             Gson gson = new Gson();
             jsonObject = gson.fromJson(json, JsonObject.class);
         } catch (Exception ex) {
-            System.out.println(ex.getMessage());
+            logger.error(ex.getMessage());
         } finally {
             qexec.close();
             httpClient.close();

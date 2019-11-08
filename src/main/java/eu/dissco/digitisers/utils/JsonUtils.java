@@ -96,8 +96,8 @@ public class JsonUtils {
         Map<String, Object> rightMap = gson.fromJson(rightJson, mapType);
 
         //flatten the maps. It will provide better comparison results especially for nested objects and arrays.
-        leftMap = FlatMapUtil.flatten(leftMap);
-        rightMap = FlatMapUtil.flatten(rightMap);
+        leftMap = FlatMapUtils.flatten(leftMap);
+        rightMap = FlatMapUtils.flatten(rightMap);
 
         return Maps.difference(leftMap, rightMap);
     }

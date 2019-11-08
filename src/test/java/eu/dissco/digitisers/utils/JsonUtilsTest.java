@@ -3,8 +3,6 @@ package eu.dissco.digitisers.utils;
 import com.google.common.collect.MapDifference;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import eu.dissco.digitisers.clients.digitalObjectRepository.DigitalObjectRepositoryClient;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,20 +60,11 @@ public class JsonUtilsTest {
         Gson gson = new Gson();
         JsonElement leftJsonElem = gson.fromJson(leftJson,JsonElement.class);
         JsonElement rightJsonElem = gson.fromJson(rightJson,JsonElement.class);
-        MapDifference<String, Object> difference = JsonUtils.compareJsonElements(leftJsonElem,rightJsonElem);
-        assertFalse("Json elements should be different", difference.areEqual());
+        MapDifference<String, Object> comparisonResult = JsonUtils.compareJsonElements(leftJsonElem,rightJsonElem);
 
-        System.out.println("Entries only on the left\n--------------------------");
-        difference.entriesOnlyOnLeft()
-                .forEach((key, value) -> System.out.println(key + ": " + value));
+        assertFalse("Json elements should be different", comparisonResult.areEqual());
 
-        System.out.println("\n\nEntries only on the right\n--------------------------");
-        difference.entriesOnlyOnRight()
-                .forEach((key, value) -> System.out.println(key + ": " + value));
-
-        System.out.println("\n\nEntries differing\n--------------------------");
-        difference.entriesDiffering()
-                .forEach((key, value) -> System.out.println(key + ": " + value));
+        this.printComparisonResult(comparisonResult);
     }
 
     @Test
@@ -105,19 +94,24 @@ public class JsonUtilsTest {
         Gson gson = new Gson();
         JsonElement leftJsonElem = gson.fromJson(leftJson,JsonElement.class);
         JsonElement rightJsonElem = gson.fromJson(rightJson,JsonElement.class);
-        MapDifference<String, Object> difference = JsonUtils.compareJsonElements(leftJsonElem,rightJsonElem);
-        assertTrue("Json elements should be equal", difference.areEqual());
+        MapDifference<String, Object> comparisonResult = JsonUtils.compareJsonElements(leftJsonElem,rightJsonElem);
 
-        System.out.println("Entries only on the left\n--------------------------");
-        difference.entriesOnlyOnLeft()
-                .forEach((key, value) -> System.out.println(key + ": " + value));
+        assertTrue("Json elements should be equal", comparisonResult.areEqual());
 
-        System.out.println("\n\nEntries only on the right\n--------------------------");
-        difference.entriesOnlyOnRight()
-                .forEach((key, value) -> System.out.println(key + ": " + value));
+        this.printComparisonResult(comparisonResult);
+    }
 
-        System.out.println("\n\nEntries differing\n--------------------------");
-        difference.entriesDiffering()
-                .forEach((key, value) -> System.out.println(key + ": " + value));
+    private void printComparisonResult(MapDifference<String, Object> comparisonResult){
+        logger.info("Entries only on the left\n--------------------------");
+        comparisonResult.entriesOnlyOnLeft()
+                .forEach((key, value) -> logger.info(key + ": " + value));
+
+        logger.info("\n\nEntries only on the right\n--------------------------");
+        comparisonResult.entriesOnlyOnRight()
+                .forEach((key, value) -> logger.info(key + ": " + value));
+
+        logger.info("\n\nEntries differing\n--------------------------");
+        comparisonResult.entriesDiffering()
+                .forEach((key, value) -> logger.info(key + ": " + value));
     }
 }

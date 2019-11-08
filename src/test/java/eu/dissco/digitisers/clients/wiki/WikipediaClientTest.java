@@ -4,10 +4,14 @@ import com.google.gson.JsonObject;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.junit.Assert.*;
 
 public class WikipediaClientTest {
+
+    private static final Logger logger = LoggerFactory.getLogger(WikipediaClientTest.class);
 
     private static WikiClient wikiClient;
 
