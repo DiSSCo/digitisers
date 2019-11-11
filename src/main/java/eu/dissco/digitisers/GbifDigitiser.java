@@ -1,30 +1,36 @@
 package eu.dissco.digitisers;
 
+import eu.dissco.digitisers.clients.digitalObjectRepository.DigitalObjectRepositoryException;
 import eu.dissco.digitisers.clients.gbif.*;
-import net.dona.doip.client.DigitalObject;
+import eu.dissco.digitisers.tasks.DigitalObjectVisitor;
 import org.apache.commons.cli.*;
+import org.apache.commons.configuration2.ex.ConfigurationException;
 
 import java.io.File;
-import java.io.IOException;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 public class GbifDigitiser extends DwcaDigitiser{
 
-    public GbifDigitiser(String configFilePath) throws IOException, URISyntaxException {
+    /****************/
+    /* CONSTRUCTORS */
+    /****************/
+    public GbifDigitiser(String configFilePath) throws ConfigurationException {
         super(configFilePath);
     }
 
-    public List<DigitalObject> digitiseDigitalSpecimensByCanonicalNameAndKindgdom(String canonicalName, String kingdom){
+
+    /******************/
+    /* PUBLIC METHODS */
+    /******************/
+
+    public void digitiseDigitalSpecimensByCanonicalNameAndKindgdom(String canonicalName, String kingdom) throws DigitalObjectRepositoryException {
         List<String> commandLineArgs = new ArrayList<String>(Arrays.asList("-n", canonicalName, "-k", kingdom));
-        return this.startDigitisation(commandLineArgs);
+        this.digitise(commandLineArgs);
     }
 
-    public List<DigitalObject> readDigitalSpecimensData(List<String> args) {
-        List<DigitalObject> listDs=new ArrayList<DigitalObject>();
-
+    public int readDigitalSpecimensData(List<String> args, DigitalObjectVisitor digitalObjectVisitor) {
         Options options = new Options();
         Option scientificNameParameter = new Option("n", "name", true, "canonical scientific name");
         scientificNameParameter.setRequired(true);
@@ -34,6 +40,7 @@ public class GbifDigitiser extends DwcaDigitiser{
         kingdomNameParameter.setRequired(true);
         options.addOption(kingdomNameParameter);
 
+        int numDsRead=0;
         try {
             CommandLineParser parser = new DefaultParser();
             CommandLine commandLine = parser.parse(options, args.toArray(new String[args.size()]));
@@ -41,7 +48,7 @@ public class GbifDigitiser extends DwcaDigitiser{
             String canonicalName = commandLine.getOptionValue("name");
             String kingdom = commandLine.getOptionValue("kingdom");
 
-            listDs = readDigitalSpecimensFromGbifOccurrenceDownloadRequest(canonicalName,kingdom);
+            numDsRead = readDigitalSpecimensFromGbifOccurrenceDownloadRequest(canonicalName,kingdom,digitalObjectVisitor);
         } catch (ParseException e) {
             this.getLogger().error(e.getMessage());
             HelpFormatter formatter = new HelpFormatter();
@@ -49,14 +56,18 @@ public class GbifDigitiser extends DwcaDigitiser{
         } catch (Exception e) {
             this.getLogger().error(e.getMessage());
         }
-        return listDs;
+        return numDsRead;
     }
 
-    protected List<DigitalObject> readDigitalSpecimensFromGbifOccurrenceDownloadRequest(String canonicalName, String kingdom) throws Exception {
+    /*********************/
+    /* PROTECTED METHODS */
+    /*********************/
+
+    protected int readDigitalSpecimensFromGbifOccurrenceDownloadRequest(String canonicalName, String kingdom, DigitalObjectVisitor digitalObjectVisitor) throws Exception {
         GbifInfo gbifInfo = GbifInfo.getGbifInfoFromConfig(this.getConfig());
         GbifClient gbifClient = GbifClient.getInstance(gbifInfo);
         File dwcaFile = gbifClient.downloadOccurrencesByCanonicalNameAndKingdom(canonicalName,kingdom);
-        return this.readDigitalSpecimensFromDwcaFile(dwcaFile);
+        return this.readDigitalSpecimensFromDwcaFile(dwcaFile,digitalObjectVisitor);
     }
 
 }

@@ -230,7 +230,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>eu.dissco.digitisers.DiscoDigitiser</mainClass>
+                            <mainClass>eu.dissco.digitisers.Digitiser</mainClass>
                         </manifest>
                     </archive>
                     <descriptorRefs>

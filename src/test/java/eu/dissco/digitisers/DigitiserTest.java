@@ -1,11 +1,7 @@
 package eu.dissco.digitisers;
 
 import com.google.common.io.Resources;
-import net.dona.doip.client.DigitalObject;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,28 +9,31 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.Assert.*;
-
 @Ignore
-public class DiscoDigitiserTest {
+public class DigitiserTest {
 
     private final static Logger logger = LoggerFactory.getLogger(DwcaDigitiserTest.class);
 
-    private static DiscoDigitiser digitiser;
+    private static Digitiser digitiser;
 
     @BeforeClass
-    public static void init() throws Exception {
+    public static void setup() throws Exception {
         digitiser=null;
     }
 
     @AfterClass
-    public static void setup() {
-        if (digitiser!=null){
-            digitiser.getDigitalObjectRepositoryClient().close();
-        }
+    public static void tearDown() {
     }
 
-    @Test
+    @Before
+    public void init() {
+    }
+
+    @After
+    public void finalize() {
+    }
+
+    @Test(expected = Test.None.class /* no exception expected */)
     public void testStartDigitisationDwcaByFile_with_CoL_EBI_Wikidata_Info() throws Exception{
         String digitiserMethod="dwca";
         String configPropertiesFilePath = Resources.getResource("config.properties").getPath();
@@ -44,12 +43,11 @@ public class DiscoDigitiserTest {
                 "-c", configPropertiesFilePath,
                 "-f", Resources.getResource(dwcaFilePath).getPath()
         ));
-        digitiser = DiscoDigitiser.getDigitiser(commandLineArgs);
-        List<DigitalObject> listDsSaved = digitiser.startDigitisation(commandLineArgs);
-        assertNotNull("The importation should completed without raising any unhandled exception",listDsSaved);
+        digitiser = DigitiserFactory.getDigitiser(commandLineArgs);
+        digitiser.digitise(commandLineArgs);
     }
 
-    @Test
+    @Test(expected = Test.None.class /* no exception expected */)
     public void testStartDigitisationDwcaByFolder() throws Exception{
         String digitiserMethod="dwca";
         String configPropertiesFilePath = Resources.getResource("config.properties").getPath();
@@ -59,13 +57,12 @@ public class DiscoDigitiserTest {
                 "-c", configPropertiesFilePath,
                 "-d", Resources.getResource(folderPath).getPath()
         ));
-        digitiser = DiscoDigitiser.getDigitiser(commandLineArgs);
-        List<DigitalObject> listDsSaved = digitiser.startDigitisation(commandLineArgs);
-        assertNotNull("The importation should completed without raising any unhandled exception",listDsSaved);
+        digitiser = DigitiserFactory.getDigitiser(commandLineArgs);
+        digitiser.digitise(commandLineArgs);
     }
 
 
-    @Test
+    @Test(expected = Test.None.class /* no exception expected */)
     public void testStartDigitisationDwcaByUrl() throws Exception{
         String digitiserMethod="dwca";
         String configPropertiesFilePath = Resources.getResource("config.properties").getPath();
@@ -75,12 +72,11 @@ public class DiscoDigitiserTest {
                 "-c", configPropertiesFilePath,
                 "-u", dwcaUrl
         ));
-        digitiser = DiscoDigitiser.getDigitiser(commandLineArgs);
-        List<DigitalObject> listDsSaved = digitiser.startDigitisation(commandLineArgs);
-        assertNotNull("The importation should completed without raising any unhandled exception",listDsSaved);
+        digitiser = DigitiserFactory.getDigitiser(commandLineArgs);
+        digitiser.digitise(commandLineArgs);
     }
 
-    @Test
+    @Test(expected = Test.None.class /* no exception expected */)
     public void testStartDigitisationGbifBySpeciesName() throws Exception{
         String digitiserMethod="gbif";
         String configPropertiesFilePath = Resources.getResource("config.properties").getPath();
@@ -92,9 +88,8 @@ public class DiscoDigitiserTest {
                 "-n", scientificName,
                 "-k", kindom
         ));
-        digitiser = DiscoDigitiser.getDigitiser(commandLineArgs);
-        List<DigitalObject> listDsSaved = digitiser.startDigitisation(commandLineArgs);
-        assertNotNull("The importation should completed without raising any unhandled exception",listDsSaved);
+        digitiser = DigitiserFactory.getDigitiser(commandLineArgs);
+        digitiser.digitise(commandLineArgs);
     }
 
 

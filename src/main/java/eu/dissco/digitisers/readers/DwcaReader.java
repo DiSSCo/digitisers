@@ -1,10 +1,10 @@
-package eu.dissco.digitisers.dwca;
+package eu.dissco.digitisers.readers;
 
 import com.google.common.io.Files;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
-import eu.dissco.digitisers.DwcaDigitiser;
+import eu.dissco.digitisers.tasks.DigitalObjectVisitor;
 import net.dona.doip.client.DigitalObject;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
@@ -16,28 +16,38 @@ import org.gbif.dwc.terms.DcTerm;
 import org.gbif.dwc.terms.DwcTerm;
 import org.gbif.dwc.terms.GbifTerm;
 import org.gbif.dwc.terms.Term;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 
-public class DwcaReader {
+public class DwcaReader extends DigitalObjectReader {
 
-    private final static Logger logger = LoggerFactory.getLogger(DwcaDigitiser.class);
+    /****************/
+    /* CONSTRUCTORS */
+    /****************/
+
+    public DwcaReader(DigitalObjectVisitor digitalObjectVisitor){
+        super(digitalObjectVisitor);
+    }
+
+
+    /******************/
+    /* PUBLIC METHODS */
+    /******************/
 
     /***
-     * Function that parses the information found in the dwca file as list of digital specimens
+     * Function that parses the information found in the dwca file using the design pattern "visitor"
      * Note: If there is any row that can not be parsed into a digital specimen, the system will report it in the log
      * file but the function will continue to process the following lines.
-     * @return List of digital specimens parsed from the information found in the dwca file
+     * @return Number of digital specimens parsed from the information found in the dwca file
      */
-    public List<DigitalObject> parseContentDwcaToDigitalSpecimens(File dwcaFile){
-        List<DigitalObject> dsObjects = new ArrayList<DigitalObject>();
+    public int readDigitalSpecimensFromDwcaFile(File dwcaFile){
+        int numDsSerialized=0;
+        int numDsProcessed=0;
         try{
-            logger.info("Parsing Dwc-A file " + dwcaFile.toURI() + " into digital specimens ");
+            this.getLogger().info("Parsing Dwc-A file " + dwcaFile.toURI() + " into digital specimens ");
 
             Path archiveFile = Paths.get(dwcaFile.toURI());
             File tempDir = Files.createTempDir();
@@ -50,7 +60,7 @@ public class DwcaReader {
                 int rows = 1;
                 //Iterate through the records in the dwc-a
                 for (StarRecord rec : dwcArchive) {
-                    logger.info("Parsing row " + rows + " (core id " + rec.core().id() + ") ...");
+                    this.getLogger().info("Parsing row " + rows + " (core id " + rec.core().id() + ") ...");
                     try{
                         //Only parse the information from the dwc-a, if the current record is for a specimen
                         //and at least has the minimum data required for a digital specimen
@@ -58,29 +68,46 @@ public class DwcaReader {
                             //Read the data of the digital specimen from the dwca record
                             JsonObject dsContent = getDigitalSpecimenContentFromDwcaRecord(rec);
 
+                            //Create object for digital specimen
                             DigitalObject ds = new DigitalObject();
                             ds.type = "DigitalSpecimen";
                             ds.setAttribute("content", dsContent);
-                            dsObjects.add(ds);
 
-                            logger.debug("Row " + rows + " (core id " + rec.core().id() + ") was serialized correctly into a Digital Specimen" );
+                            numDsSerialized = numDsSerialized + 1;
+                            this.getLogger().debug("Row " + rows + " (core id " + rec.core().id() + ") has been serialized correctly into a Digital Specimen");
+
+                            //Call function that use the visitor to process the digital object
+                            DigitalObject dsProcessed = this.processDigitalSpecimen(ds);
+                            if (dsProcessed!=null){
+                                numDsProcessed = numDsProcessed + 1;
+                                this.getLogger().info("Digital specimen for row " + rows + " (core id " + rec.core().id() + ") has been processed correctly");
+                            } else{
+                                this.getLogger().warn("Digital specimen for row " + rows + " (core id " + rec.core().id() + ") has NOT been processed correctly");
+                            }
                         } else{
-                            logger.warn("Row " + rows + " (core id " + rec.core().id() + ") wasn't serialized into a Digital Specimen" );
+                            this.getLogger().warn("Row " + rows + " (core id " + rec.core().id() + ") hasn't been serialized into a Digital Specimen" );
                         }
                     } catch (Exception e){
-                        logger.error("Unexpected error parsing row " + rows,e);
+                        this.getLogger().error("Unexpected error parsing row " + rows,e);
                     }
                     rows++;
                 }
-                logger.info("Dwc-A file " + dwcaFile.toURI() + " parsed. Result: " + (rows-1) + " row(s) were found in the core file and " + dsObjects.size() + " of them were serialized as Digital Specimens");
+                this.getLogger().info("Dwc-A file " + dwcaFile.toURI() + " parsed. Result: " + (rows-1) + " row(s) were found in " +
+                        "the core file. " + numDsSerialized + " of those rows were serialized as Digital Specimens and " +
+                        numDsProcessed + " of those Digital Speciemens were processed correctly.");
             } else{
-                logger.error("Only dwca files that its core file is Occurrences can be processed into digital specimens");
+                this.getLogger().error("Only dwca files that its core file is Occurrences can be processed into digital specimens");
             }
         }catch (Exception e){
-            logger.error("Unexpected error parsing dwca-file to doip " + dwcaFile.toURI(),e);
+            this.getLogger().error("Unexpected error parsing dwca-file to digital specimens " + dwcaFile.toURI(),e);
         }
-        return dsObjects;
+        return numDsSerialized;
     }
+
+
+    /*******************/
+    /* PRIVATE METHODS */
+    /*******************/
 
     private boolean checkIfDwcaRecordCanBeParsedAsDigitalSpecimen(StarRecord rec){
         //Check if the dwca record is for a specimen (living, preserved or fossil) and it has enough information to populate a Digital Specimen object
@@ -100,7 +127,7 @@ public class DwcaReader {
             if (StringUtils.isBlank(scientificName)) sb.append(" scientificName is blank or can't be found");
             if (StringUtils.isBlank(institutionCode)) sb.append(" institutionCode is blank or can't be found");
             if (StringUtils.isBlank(physicalSpecimenId)) sb.append(" physicalSpecimenId is blank or can't be found");
-            logger.warn(sb.toString());
+            this.getLogger().warn(sb.toString());
         }
 
         return canDwcaRecordBeParsedAsDigitalSpecimen;
@@ -241,9 +268,9 @@ public class DwcaReader {
             physicalSpecimenId=gbifID;
             source="gbifID";
         } else{
-            logger.warn("PhysicalSpecimenId can not be obtained for this record");
+            this.getLogger().warn("PhysicalSpecimenId can not be obtained for this record");
         }
-        if (source!=null && logResults) logger.info("PhysicalSpecimenId obtained from '"+ source + "'");
+        if (source!=null && logResults) this.getLogger().info("PhysicalSpecimenId obtained from '"+ source + "'");
         return physicalSpecimenId;
     }
 
@@ -306,7 +333,7 @@ public class DwcaReader {
             source = "core: " + rec.core().rowType().prefixedName();
         }
 
-        if (StringUtils.isNotBlank(valueInDwca)) logger.debug(term.prefixedName() + " read from " + source);
+        if (StringUtils.isNotBlank(valueInDwca)) this.getLogger().debug(term.prefixedName() + " read from " + source);
 
         return valueInDwca;
     }
@@ -317,4 +344,6 @@ public class DwcaReader {
             dsContent.addProperty(property,value);
         }
     }
+
+
 }

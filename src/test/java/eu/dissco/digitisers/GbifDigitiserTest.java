@@ -2,10 +2,7 @@ package eu.dissco.digitisers;
 
 import com.google.common.io.Resources;
 import net.dona.doip.client.DigitalObject;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,22 +19,28 @@ public class GbifDigitiserTest {
     private static GbifDigitiser digitiser;
 
     @BeforeClass
-    public static void init() throws Exception {
+    public static void setup() throws Exception {
         String configPropertiesFilePath = Resources.getResource("config.properties").getPath();
         digitiser = new GbifDigitiser(configPropertiesFilePath);
     }
 
     @AfterClass
-    public static void setup() {
-        digitiser.getDigitalObjectRepositoryClient().close();
+    public static void tearDown() {
+
     }
 
-    @Test
+    @Before
+    public void init() {
+    }
+
+    @After
+    public void finalize() {
+    }
+
+    @Test(expected = Test.None.class /* no exception expected */)
     public void testImportDataToRepository_scientificName() throws Exception{
         String canonicalName = "Agathis montana";
         String kingdom = "Plantae";
-
-        List<DigitalObject> listDsSaved = digitiser.digitiseDigitalSpecimensByCanonicalNameAndKindgdom(canonicalName,kingdom);
-        assertNotNull("The importation should completed without raising any unhandled exception",listDsSaved);
+        digitiser.digitiseDigitalSpecimensByCanonicalNameAndKindgdom(canonicalName,kingdom);
     }
 }

@@ -1,23 +1,20 @@
-package eu.dissco.digitisers;
+package eu.dissco.digitisers.tasks;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.maxmind.geoip2.model.CountryResponse;
 import eu.dissco.digitisers.clients.col.CoLClient;
-import eu.dissco.digitisers.clients.digitalObjectRepository.DigitalObjectRepositoryException;
 import eu.dissco.digitisers.clients.digitalObjectRepository.DigitalObjectRepositoryClient;
+import eu.dissco.digitisers.clients.digitalObjectRepository.DigitalObjectRepositoryException;
 import eu.dissco.digitisers.clients.digitalObjectRepository.DigitalObjectRepositoryInfo;
 import eu.dissco.digitisers.clients.ebi.EbiClient;
 import eu.dissco.digitisers.clients.gbif.GbifClient;
 import eu.dissco.digitisers.clients.gbif.GbifInfo;
 import eu.dissco.digitisers.clients.misc.CountryClient;
-import eu.dissco.digitisers.clients.wiki.*;
-import eu.dissco.digitisers.utils.EmailUtils;
-import eu.dissco.digitisers.utils.FileUtils;
+import eu.dissco.digitisers.clients.wiki.WikiClient;
 import eu.dissco.digitisers.utils.NetUtils;
 import net.dona.doip.client.DigitalObject;
-import org.apache.commons.cli.*;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.validator.routines.UrlValidator;
@@ -28,20 +25,32 @@ import org.gbif.dwc.terms.Term;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.net.URISyntaxException;
-import java.time.LocalDateTime;
-import java.util.*;
-import java.util.stream.Collectors;
 
-public abstract class DiscoDigitiser {
-    private final Logger logger = LoggerFactory.getLogger(getClass());
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.UUID;
 
-    private DigitalObjectRepositoryClient digitalObjectRepositoryClient;
+public class DigitalObjectProcessor implements DigitalObjectVisitor {
+
+    /**************/
+    /* ATTRIBUTES */
+    /**************/
+
+    private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private Configuration config;
+    private DigitalObjectRepositoryClient digitalObjectRepositoryClient;
+
+
+    /***********************/
+    /* GETTERS AND SETTERS */
+    /***********************/
 
     protected Logger getLogger() {
         return logger;
+    }
+
+    protected Configuration getConfig() {
+        return config;
     }
 
     protected DigitalObjectRepositoryClient getDigitalObjectRepositoryClient() {
@@ -52,98 +61,49 @@ public abstract class DiscoDigitiser {
         this.digitalObjectRepositoryClient = digitalObjectRepositoryClient;
     }
 
-    protected Configuration getConfig() {
-        return config;
-    }
-
-    protected void setConfig(Configuration config) {
+    /****************/
+    /* CONSTRUCTORS */
+    /****************/
+    public DigitalObjectProcessor(Configuration config) throws DigitalObjectRepositoryException {
         this.config = config;
+        DigitalObjectRepositoryInfo digitalObjectRepositoryInfo =  DigitalObjectRepositoryInfo.getDigitalObjectRepositoryInfoFromConfig(this.config);
+        this.digitalObjectRepositoryClient = DigitalObjectRepositoryClient.getInstance(digitalObjectRepositoryInfo);
     }
 
-    public DiscoDigitiser(String configFilePath) {
-        try {
-            this.config = FileUtils.loadConfigurationFromFilePath(configFilePath);
-            DigitalObjectRepositoryInfo digitalObjectRepositoryInfo =  DigitalObjectRepositoryInfo.getDigitalObjectRepositoryInfoFromConfig(this.getConfig());
-            DigitalObjectRepositoryClient digitalObjectRepositoryClient = DigitalObjectRepositoryClient.getInstance(digitalObjectRepositoryInfo);
-            this.digitalObjectRepositoryClient=digitalObjectRepositoryClient;
-        } catch (Exception e){
-            this.logger.error(e.getMessage());
+
+    /******************/
+    /* PUBLIC METHODS */
+    /******************/
+
+    @Override
+    public DigitalObject visitDigitalSpecimen(DigitalObject ds) {
+        //Enrich data in digital specimen
+        this.enrichDigitalSpecimenData(ds);
+
+        //Calculate digital specimen MIDS level
+        this.calculateDigitalSpecimenMidsLevel(ds);
+
+        //Save (insert, update) digital specimen in repository
+        DigitalObject dsSaved = this.saveDigitalSpecimen(ds);
+
+        if (dsSaved!=null && dsSaved.attributes.has("operation")){
+            this.getLogger().info("DS "+ dsSaved.attributes.get("operation").getAsString() +" with id: " + dsSaved.id);
         }
+        return  dsSaved;
     }
 
     @Override
-    protected void finalize() throws Throwable{
-        try{
-            //release the connection to the digital object repository  back to the pool of connections managed by this client library
-            if (this.getDigitalObjectRepositoryClient()==null){
-                this.getDigitalObjectRepositoryClient().close();
-            }
-        } catch(Throwable t){
-            throw t;
-        } finally{
-            super.finalize();
+    public void close(){
+        //release the connection to the digital object repository  back to the pool of connections managed by this client library
+        if (this.getDigitalObjectRepositoryClient()==null){
+            this.getDigitalObjectRepositoryClient().close();
         }
     }
 
-    /***
-     * Abstract method that needs to be implemented in the specific digitiser classes and depending on the parameters
-     * will start certain digitisation technique in the given class (eg: dwca file importation, dwca folder importation, etc.)
-     * @param args
-     * @return
-     */
-    public List<DigitalObject> startDigitisation(List<String> args){
-        LocalDateTime startDateTime = LocalDateTime.now();
 
-        List<DigitalObject> listDsSaved = new ArrayList<DigitalObject>();
-        //Read data from source (it could be a dwc-a file, a gbif download request, etc)
-        List<DigitalObject> listDsFromSource = this.readDigitalSpecimensData(args);
-        for (DigitalObject ds:listDsFromSource) {
-            //Enrich data in digital specimen
-            this.enrichDigitalSpecimenData(ds);
-            //Calculate digital specimen MIDS level
-            this.calculateDigitalSpecimenMidsLevel(ds);
-            //Save (insert, update) digital specimen in repository
-            DigitalObject dsSaved = this.saveDigitalSpecimen(ds);
-            if (dsSaved!=null){
-                if (dsSaved.attributes.has("operation")) this.getLogger().info("DS "+ dsSaved.attributes.get("operation").getAsString() +" with id: " + dsSaved.id);
-                listDsSaved.add(dsSaved);
-            }
-        }
-
-        this.getLogger().info("Digitisation completed.");
-        this.reportResultDigitisation(listDsFromSource, listDsSaved);
-
-        LocalDateTime endDateTime= LocalDateTime.now();
-        List<String> emailAddresses = this.getConfig().getList(String.class,"digitiser.sendDigitisationResultsByEmailTo");
-        if (emailAddresses.size()>0){
-            boolean emailSent = EmailUtils.sendResultDigitiserExecution(startDateTime,endDateTime,emailAddresses);
-        }
-
-        return listDsSaved;
-    }
-
-    private void reportResultDigitisation(List<DigitalObject> listDsFromSource, List<DigitalObject> listDsSaved){
-        List<DigitalObject> listDsCreated = listDsSaved.stream()
-                .filter( ds -> ds.attributes.has("operation") && ds.attributes.get("operation").getAsString().equalsIgnoreCase(DigitalObjectRepositoryClient.OPERATION.INSERT.name()))
-                .collect(Collectors.toList());
-
-        List<DigitalObject> listDsUpdated = listDsSaved.stream()
-                .filter( ds -> ds.attributes.has("operation") && ds.attributes.get("operation").getAsString().equalsIgnoreCase(DigitalObjectRepositoryClient.OPERATION.UPDATE.name()))
-                .collect(Collectors.toList());
-
-        this.getLogger().info("Results: "  + listDsFromSource.size() + " objects from source " +
-                "were serialized into digital specimens. " +
-                listDsCreated.size() + " of them were created in the repository and " +
-                listDsUpdated.size() + " were updated");
-
-        this.getLogger().info("List of digital specimens CREATED: " + listDsCreated.size());
-        listDsCreated.forEach(ds -> this.getLogger().info("\tDs " + ds.id));
-
-        this.getLogger().info("List of digital specimens UPDATED: " + listDsUpdated.size());
-        listDsUpdated.forEach(ds -> this.getLogger().info("\tDs " + ds.id));
-    }
-
-    protected abstract List<DigitalObject> readDigitalSpecimensData(List<String> args);
+    /*********************/
+    /* PROTECTED METHODS */
+    /*********************/
 
     protected void enrichDigitalSpecimenData(DigitalObject ds){
         this.enrichDigitalSpecimenWithCountryInfo(ds);
@@ -186,6 +146,22 @@ public abstract class DiscoDigitiser {
         }
         return dsSaved;
     }
+
+    @Override
+    protected void finalize() throws Throwable{
+        try{
+            this.close();
+        } catch(Throwable t){
+            throw t;
+        } finally{
+            super.finalize();
+        }
+    }
+
+
+    /*******************/
+    /* PRIVATE METHODS */
+    /*******************/
 
     private boolean canDigitalSpecimenBeSaved(DigitalObject ds){
         boolean canBeSaved =true;
@@ -332,7 +308,7 @@ public abstract class DiscoDigitiser {
 
             if (StringUtils.isNotBlank(institutionCode) && StringUtils.isNotBlank(collectionCode) && StringUtils.isNotBlank(catalogNumber)){
                 EbiClient ebiClient = EbiClient.getInstance();
-                String searchTerm = String.join(" ",Arrays.asList(institutionCode,collectionCode,catalogNumber));
+                String searchTerm = String.join(" ", Arrays.asList(institutionCode,collectionCode,catalogNumber));
                 JsonArray ebiResults = ebiClient.rootSearchAsJson(searchTerm,true);
                 ds.attributes.getAsJsonObject("content").add("ebiSearchResults",ebiResults);
             } else{
@@ -345,6 +321,7 @@ public abstract class DiscoDigitiser {
 
     private void enrichDigitalSpecimenWithWikiInfo(DigitalObject ds) {
         try{
+
             String wikipedia = this.getStringPropetyInDigitalObject(ds,"wikipedia");
             String acceptedScientificName = this.getStringPropetyInDigitalObject(ds,"scientificName");
             String gbifKindgdomTaxonId = this.getTermFromDsDwcaJson(ds, GbifTerm.kingdomKey);
@@ -359,11 +336,11 @@ public abstract class DiscoDigitiser {
                 if (parsedName != null && kindgdomInfo != null) {
                     String canonicalName = parsedName.get("canonicalName").getAsString();
                     String kingdomName = kindgdomInfo.get("scientificName").getAsString();
-                    WikiClient wikiClient = WikiDataClient.getInstance();
+                    WikiClient wikiClient = WikiClient.getInstance("wikidata");
                     JsonObject wikiInfo = wikiClient.getWikiInformation(canonicalName,kingdomName);
                     if (wikiInfo!=null){
-                        this.addStringPropertyToDigitalObject(ds,wikiClient.getClientName(),wikiClient.getPageURL(wikiInfo));
-                        ds.attributes.getAsJsonObject("content").add(wikiClient.getClientName()+"_info",wikiInfo);
+                        this.addStringPropertyToDigitalObject(ds,wikiClient.getWikiType(),wikiClient.getPageURL(wikiInfo));
+                        ds.attributes.getAsJsonObject("content").add(wikiClient.getWikiType()+"_info",wikiInfo);
                     }
                 }
             }
@@ -426,70 +403,5 @@ public abstract class DiscoDigitiser {
             isValidUuid = false;
         }
         return isValidUuid;
-    }
-
-
-    /*****************************************************/
-    /* Static methods to execute class from command line */
-    /*****************************************************/
-
-    public static void main(String[] args) throws Exception {
-        DiscoDigitiser digitiser = null;
-        try{
-            List<String> listArgs = new ArrayList<String>(Arrays.asList(args));
-            digitiser = getDigitiser(listArgs);
-            digitiser.startDigitisation(listArgs);
-        } catch (Exception e){
-            System.err.println("There has been an unexpected error in the system" + e.getMessage());
-        } finally {
-            //release the connection to the DOIP server back to the pool of connections managed by this client library
-            if (digitiser!=null) digitiser.getDigitalObjectRepositoryClient().close();
-        }
-    }
-
-
-
-    public static DiscoDigitiser getDigitiser(List<String> args) throws ParseException, IOException, URISyntaxException {
-        DiscoDigitiser digitiser = null;
-        Options options = new Options();
-        Option fileParameter = new Option("m", "method", true, "digitiser method (dwca,gbif,...)");
-        fileParameter.setRequired(true);
-        options.addOption(fileParameter);
-        Option configFileParameter = new Option("c", "config", true, "config config file path");
-        configFileParameter.setRequired(true);
-        options.addOption(configFileParameter);
-
-        try {
-            CommandLineParser parser = new DefaultParser();
-            CommandLine commandLine = parser.parse(options, args.toArray(new String[args.size()]),true);
-
-            String digitiserMethod = commandLine.getOptionValue("method");
-            String configPropertiesFilePath = commandLine.getOptionValue("config");
-            switch (digitiserMethod) {
-                case "dwca":
-                    digitiser = new DwcaDigitiser(configPropertiesFilePath);
-                    break;
-                case "gbif":
-                    digitiser = new DwcaDigitiser(configPropertiesFilePath);
-                    break;
-                default:
-                    throw new ParseException("Digitisation method not supported");
-            }
-
-            //Remove "method" and "config" arguments, as not longer required
-            List<String> commandLineArgs = Arrays.asList(commandLine.getArgs());
-            for (Iterator<String> iter = args.iterator(); iter.hasNext(); ) {
-                String arg = iter.next();
-                if (!commandLineArgs.contains(arg)){
-                    iter.remove();
-                }
-            }
-
-        } catch (ParseException e) {
-            HelpFormatter formatter = new HelpFormatter();
-            formatter.printHelp("DiscoDigitiser", options);
-            throw e;
-        }
-        return digitiser;
     }
 }
