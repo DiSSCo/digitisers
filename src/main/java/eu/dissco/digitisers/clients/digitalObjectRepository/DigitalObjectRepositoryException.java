@@ -4,10 +4,39 @@ import net.cnri.cordra.api.CordraException;
 import net.dona.doip.client.DoipException;
 
 public class DigitalObjectRepositoryException extends Exception {
+
+    /**************/
+    /* ATTRIBUTES */
+    /**************/
+
     private final String statusCode;
+
+
+    /***********************/
+    /* GETTERS AND SETTERS */
+    /***********************/
+
+    public String getStatusCode() {
+        return this.statusCode;
+    }
+
+
+    /****************/
+    /* CONSTRUCTORS */
+    /****************/
 
     public DigitalObjectRepositoryException(String message) {
         super(message);
+        this.statusCode = null;
+    }
+
+    public DigitalObjectRepositoryException(Throwable cause) {
+        super(cause);
+        this.statusCode = null;
+    }
+
+    public DigitalObjectRepositoryException(String message, Throwable cause) {
+        super(message, cause);
         this.statusCode = null;
     }
 
@@ -16,19 +45,15 @@ public class DigitalObjectRepositoryException extends Exception {
         this.statusCode = statusCode;
     }
 
-    public DigitalObjectRepositoryException(Throwable cause) {
-        super(cause);
-        this.statusCode = null;
-    }
-
     public DigitalObjectRepositoryException(String statusCode, String message, Throwable cause) {
         super(message, cause);
         this.statusCode = statusCode;
     }
 
-    public String getStatusCode() {
-        return this.statusCode;
-    }
+
+    /******************/
+    /* PUBLIC METHODS */
+    /******************/
 
     public static DigitalObjectRepositoryException convertDoipException(DoipException doipException){
         return new DigitalObjectRepositoryException(doipException.getStatusCode(), doipException.getMessage(),doipException.getCause());

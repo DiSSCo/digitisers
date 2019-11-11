@@ -32,7 +32,10 @@ public class EmailUtils {
 
                 //Prepare email
                 String emailSubject = "Result of digitisation";
-                String emailBody = "See attached the log entries of the digitiser's execution";
+                String emailBody = "Dear DiSSCo user,\n\n " +
+                        "The digitisation has finished. Pleease see attached the log entries of its execution.\n\n" +
+                        "Kind regards,\n"+
+                        "DiSSCo.eu";
                 List<File> attachments = Arrays.asList(tempFilterLogFile);
 
                 //Send email

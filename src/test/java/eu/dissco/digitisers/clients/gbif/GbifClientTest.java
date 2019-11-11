@@ -22,14 +22,14 @@ public class GbifClientTest {
     private static GbifClient gbifClient;
 
     @BeforeClass
-    public static void init() throws Exception {
+    public static void setup() throws Exception {
         Configuration config = FileUtils.loadConfigurationFromResourceFile("config.properties");
         GbifInfo gbifInfo =  GbifInfo.getGbifInfoFromConfig(config);
         gbifClient = GbifClient.getInstance(gbifInfo);
     }
 
     @AfterClass
-    public static void setup() {
+    public static void tearDown() {
 
     }
 

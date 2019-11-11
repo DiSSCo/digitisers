@@ -1,6 +1,5 @@
 package eu.dissco.digitisers.clients.misc;
 
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import eu.dissco.digitisers.utils.NetUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -12,22 +11,26 @@ import java.util.TreeMap;
 
 public class CountryClient {
 
-    private final static Logger logger = LoggerFactory.getLogger(CountryClient.class);
+    /**************/
+    /* ATTRIBUTES */
+    /**************/
 
+    private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private static CountryClient instance=null;
+    private final String apiUrl ="https://restcountries.eu/rest/v2"; //We could also use http://api.gbif.org/v1/enumeration/country as backup service in case restcountries.eu disappears
+    private Map<String, JsonObject> mapCountryInfoNameByCode; //Map to improve efficiency of this class, so it doesn't need to call the external APIs when we already got results
 
-    //We could also use http://api.gbif.org/v1/enumeration/country as backup service in case restcountries.eu disappears
-    private String apiUrl ="https://restcountries.eu/rest/v2";
 
-    //Hashmap to improve efficiency of this class, so it doesn't need to call the external APIs when we already got results
-    private Map<String, JsonObject> mapCountryInfoNameByCode;
+    /***********************/
+    /* GETTERS AND SETTERS */
+    /***********************/
+
+    protected Logger getLogger() {
+        return logger;
+    }
 
     protected String getApiUrl() {
         return apiUrl;
-    }
-
-    protected void setApiUrl(String apiUrl) {
-        this.apiUrl = apiUrl;
     }
 
     protected Map<String, JsonObject> getMapCountryInfoNameByCode() {
@@ -38,12 +41,27 @@ public class CountryClient {
         this.mapCountryInfoNameByCode = mapCountryInfoNameByCode;
     }
 
-    //private constructor to avoid client applications to use constructor
-    //as we use the singleton pattern
+
+    /****************/
+    /* CONSTRUCTORS */
+    /****************/
+
+    /**
+     * Private constructor to avoid client applications to use constructor as we use the singleton design pattern
+     */
     private CountryClient(){
         this.mapCountryInfoNameByCode = new TreeMap<String,JsonObject>();
     }
 
+
+    /******************/
+    /* PUBLIC METHODS */
+    /******************/
+
+    /**
+     *  Method to get an instance of CountryClient as we use the singleton design pattern
+     * @return
+     */
     public static CountryClient getInstance(){
         if (instance==null){
             instance = new CountryClient();
@@ -70,7 +88,7 @@ public class CountryClient {
                     countryInfo = (JsonObject) NetUtils.doGetRequestJson(this.getApiUrl()+"/alpha/" + StringUtils.trim(countryCode));
                 } catch (Exception e){
                     //There was an error obtaining the country from its country code
-                    logger.error("Error getting the country by countryCode " + countryCode + " using restcountries.eu API");
+                    this.getLogger().error("Error getting the country by countryCode " + countryCode + " using restcountries.eu API");
                 }
                 this.getMapCountryInfoNameByCode().put(countryCode,countryInfo);
             }

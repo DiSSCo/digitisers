@@ -20,12 +20,12 @@ public class EbiClientTest {
     private static EbiClient ebiClient;
 
     @BeforeClass
-    public static void init() throws Exception {
+    public static void setup() throws Exception {
         ebiClient = EbiClient.getInstance();
     }
 
     @AfterClass
-    public static void setup() {
+    public static void tearDown() {
 
     }
 

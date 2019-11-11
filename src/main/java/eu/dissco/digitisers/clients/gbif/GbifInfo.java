@@ -1,12 +1,29 @@
 package eu.dissco.digitisers.clients.gbif;
 
 import org.apache.commons.configuration2.Configuration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Objects;
 
 public class GbifInfo {
+
+    /**************/
+    /* ATTRIBUTES */
+    /**************/
+
+    private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private String username;
     private String password;
+
+
+    /***********************/
+    /* GETTERS AND SETTERS */
+    /***********************/
+
+    protected Logger getLogger() {
+        return logger;
+    }
 
     public String getUsername() {
         return username;
@@ -24,9 +41,24 @@ public class GbifInfo {
         this.password = password;
     }
 
+
+    /****************/
+    /* CONSTRUCTORS */
+    /****************/
+
     public GbifInfo(String username, String password) {
         this.username = username;
         this.password = password;
+    }
+
+
+    /******************/
+    /* PUBLIC METHODS */
+    /******************/
+
+    public static GbifInfo getGbifInfoFromConfig(Configuration config){
+        GbifInfo gbifInfo = new GbifInfo(config.getString("gbif.username"), config.getString("gbif.password"));
+        return gbifInfo;
     }
 
     @Override
@@ -49,11 +81,5 @@ public class GbifInfo {
                 "username='" + username + '\'' +
                 ", password='" + password + '\'' +
                 '}';
-    }
-
-
-    public static GbifInfo getGbifInfoFromConfig(Configuration config){
-        GbifInfo gbifInfo = new GbifInfo(config.getString("gbif.username"), config.getString("gbif.password"));
-        return gbifInfo;
     }
 }

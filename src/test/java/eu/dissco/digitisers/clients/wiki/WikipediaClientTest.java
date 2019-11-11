@@ -16,12 +16,12 @@ public class WikipediaClientTest {
     private static WikiClient wikiClient;
 
     @BeforeClass
-    public static void init() throws Exception {
-        wikiClient = WikipediaClient.getInstance();
+    public static void setup() throws Exception {
+        wikiClient = WikiClient.getInstance("wikipedia");
     }
 
     @AfterClass
-    public static void setup() {
+    public static void tearDown() {
 
     }
 

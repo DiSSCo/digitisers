@@ -12,22 +12,27 @@ import java.util.*;
 
 public class EbiClient {
 
-    private final static Logger logger = LoggerFactory.getLogger(EbiClient.class);
+    /**************/
+    /* ATTRIBUTES */
+    /**************/
 
+    private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private static EbiClient instance=null;
+    private final String apiUrl ="https://www.ebi.ac.uk/ebisearch/ws/rest/";
+    private Map<String, List<WSEntry>> mapSearchResultBySearchTermAndDomain; //Map to improve efficiency of this class, so it doesn't need to call the external APIs when we already got results
+    private Map<String, List<String>> mapRetrievablesFieldsByDomain; //Map to improve efficiency of this class
 
-    private String apiUrl ="https://www.ebi.ac.uk/ebisearch/ws/rest/";
 
-    //Hashmap to improve efficiency of this class, so it doesn't need to call the external APIs when we already got results
-    private Map<String, List<WSEntry>> mapSearchResultBySearchTermAndDomain;
-    private Map<String, List<String>> mapRetrievablesFieldsByDomain;
+    /***********************/
+    /* GETTERS AND SETTERS */
+    /***********************/
+
+    protected Logger getLogger() {
+        return logger;
+    }
 
     protected String getApiUrl() {
         return apiUrl;
-    }
-
-    protected void setApiUrl(String apiUrl) {
-        this.apiUrl = apiUrl;
     }
 
     protected Map<String, List<WSEntry>> getMapSearchResultBySearchTermAndDomain() {
@@ -46,13 +51,28 @@ public class EbiClient {
         this.mapRetrievablesFieldsByDomain = mapRetrievablesFieldsByDomain;
     }
 
-    //private constructor to avoid client applications to use constructor
-    //as we use the singleton pattern
+
+    /****************/
+    /* CONSTRUCTORS */
+    /****************/
+
+    /**
+     * Private constructor to avoid client applications to use constructor as we use the singleton design pattern
+     */
     private EbiClient(){
         this.mapSearchResultBySearchTermAndDomain = new TreeMap<String,List<WSEntry>>();
         this.mapRetrievablesFieldsByDomain = new TreeMap<String,List<String>>();
     }
 
+
+    /*******************/
+    /* PUBLIC METHODS */
+    /******************/
+
+    /**
+     * Method to get an instance of EbiClient as we use the singleton design pattern
+     * @return
+     */
     public static EbiClient getInstance(){
         if (instance==null){
             instance = new EbiClient();
@@ -84,27 +104,6 @@ public class EbiClient {
         return (JsonArray)gson.toJsonTree(ebiResults);
     }
 
-
-    /***
-     * Function that searches for the searchTerm as free text in all ebi domains
-     * @param searchTerm
-     * @param exactMatch
-     * @return list with information of all the entries found
-     * @throws ApiException
-     */
-    private List<WSEntry> rootSearch(String searchTerm, boolean exactMatch) throws ApiException {
-        if (exactMatch && !searchTerm.startsWith("\"")){
-            searchTerm = "\""+searchTerm+"\"";
-        }
-
-        //Note: if we search by specific domain, we can restrict the search by looking at searchable field but not for root search
-        //Eg: emblrelease_standard?query=%2522MNHN-IM-2013-7767%2522%2520AND%2520TAXON:1504874&fields=TAXON'
-        SearchApi api = new SearchApi();
-        WSSearchResult searchResult = api.rootsearch(null,searchTerm,null);
-        return this.getEntriesDetailsInSearchResult(searchResult,searchTerm,exactMatch);
-    }
-
-
     /***
      * Function that searches for the searchTerm as free text in the specific ebi domain
      * @param domainId
@@ -132,6 +131,30 @@ public class EbiClient {
         }
 
         return this.getMapSearchResultBySearchTermAndDomain().get(searchTerm+"#"+domainId);
+    }
+
+
+    /*******************/
+    /* PRIVATE METHODS */
+    /*******************/
+
+    /***
+     * Function that searches for the searchTerm as free text in all ebi domains
+     * @param searchTerm
+     * @param exactMatch
+     * @return list with information of all the entries found
+     * @throws ApiException
+     */
+    private List<WSEntry> rootSearch(String searchTerm, boolean exactMatch) throws ApiException {
+        if (exactMatch && !searchTerm.startsWith("\"")){
+            searchTerm = "\""+searchTerm+"\"";
+        }
+
+        //Note: if we search by specific domain, we can restrict the search by looking at searchable field but not for root search
+        //Eg: emblrelease_standard?query=%2522MNHN-IM-2013-7767%2522%2520AND%2520TAXON:1504874&fields=TAXON'
+        SearchApi api = new SearchApi();
+        WSSearchResult searchResult = api.rootsearch(null,searchTerm,null);
+        return this.getEntriesDetailsInSearchResult(searchResult,searchTerm,exactMatch);
     }
 
     private List<WSEntry> getEntriesDetailsInSearchResult(WSSearchResult searchResult, String searchTerm, boolean exactMatch) throws ApiException {

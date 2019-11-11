@@ -7,8 +7,6 @@ import com.google.gson.JsonObject;
 import eu.dissco.digitisers.utils.NetUtils;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.jena.query.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.util.Iterator;
@@ -16,25 +14,24 @@ import java.util.Iterator;
 
 public class WikiDataClient extends WikiClient{
 
-    private final static Logger logger = LoggerFactory.getLogger(WikiDataClient.class);
+    /****************/
+    /* CONSTRUCTORS */
+    /****************/
 
-    private static WikiDataClient instance=null;
-
-    //private constructor to avoid client applications to use constructor
-    //as we use the singleton pattern
-    private WikiDataClient(){
+    /**
+     * Private constructor to avoid client applications to use constructor as we use the singleton design pattern
+     */
+    protected WikiDataClient(){
         super("https://query.wikidata.org/sparql");
     }
 
-    public static WikiDataClient getInstance(){
-        if (instance==null){
-            instance = new WikiDataClient();
-        }
-        return instance;
-    }
+
+    /******************/
+    /* PUBLIC METHODS */
+    /******************/
 
     @Override
-    public String getClientName() {
+    public String getWikiType() {
         return "wikidata";
     }
 
@@ -90,6 +87,11 @@ public class WikiDataClient extends WikiClient{
         }
         return pageUrl;
     }
+
+
+    /*******************/
+    /* PRIVATE METHODS */
+    /*******************/
 
     private JsonObject getTaxonConceptInfo(String canonicalName, String kingdom) throws Exception {
         String querySelectTaxon = this.getQueryTaxonConcept(canonicalName);
@@ -225,11 +227,12 @@ public class WikiDataClient extends WikiClient{
             Gson gson = new Gson();
             jsonObject = gson.fromJson(json, JsonObject.class);
         } catch (Exception ex) {
-            logger.error(ex.getMessage());
+            this.getLogger().error(ex.getMessage());
         } finally {
             qexec.close();
             httpClient.close();
         }
         return jsonObject;
     }
+
 }

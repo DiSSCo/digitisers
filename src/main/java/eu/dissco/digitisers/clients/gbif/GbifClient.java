@@ -21,35 +21,36 @@ import java.util.TreeMap;
 
 public class GbifClient {
 
-    private final static Logger logger = LoggerFactory.getLogger(GbifClient.class);
+    /**************/
+    /* ATTRIBUTES */
+    /**************/
 
+    private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private static GbifClient instance=null;
+    private final String apiUrl = "http://api.gbif.org/v1";
+    private final GbifInfo gbifInfo;
+    private Map<String,JsonObject> mapTaxonById; //Map to improve efficiency of this class, so it doesn't need to call the external APIs when we already got results
+    private Map<String,JsonObject> mapParsedNameByScientificName; //Map to improve efficiency of this class
+    private Map<String,String> mapTaxonIdByCanonicalNameAndKingdom; //Map to improve efficiency of this class
+    private Map<String,JsonArray> mapInstitutionsInfoByCode; //Map to improve efficiency of this class
+    private Map<String,JsonObject> mapInstitutionInfoById; //Map to improve efficiency of this class
+    private Map<String,JsonObject> mapCollectionInfoByInstitutionIdAndCollectionName; //Map to improve efficiency of this class
 
-    private String apiUrl = "http://api.gbif.org/v1";
 
-    private GbifInfo gbifInfo;
-    //Hashmaps to improve efficiency of this class, so it doesn't need to call the external APIs when we already got results
-    private Map<String,JsonObject> mapTaxonById;
-    private Map<String,JsonObject> mapParsedNameByScientificName;
-    private Map<String,String> mapTaxonIdByCanonicalNameAndKingdom;
-    private Map<String,JsonArray> mapInstitutionsInfoByCode;
-    private Map<String,JsonObject> mapInstitutionInfoById;
-    private Map<String,JsonObject> mapCollectionInfoByInstitutionIdAndCollectionName;
+    /***********************/
+    /* GETTERS AND SETTERS */
+    /***********************/
+
+    protected Logger getLogger() {
+        return logger;
+    }
 
     public String getApiUrl() {
         return apiUrl;
     }
 
-    public void setApiUrl(String apiUrl) {
-        this.apiUrl = apiUrl;
-    }
-
     protected GbifInfo getGbifInfo() {
         return gbifInfo;
-    }
-
-    public void setGbifInfo(GbifInfo gbifInfo) {
-        this.gbifInfo = gbifInfo;
     }
 
     protected Map<String, JsonObject> getMapParsedNameByScientificName() {
@@ -100,8 +101,14 @@ public class GbifClient {
         this.mapCollectionInfoByInstitutionIdAndCollectionName = mapCollectionInfoByInstitutionIdAndCollectionName;
     }
 
-    //private constructor to avoid client applications to use constructor
-    //as we use the singleton pattern
+
+    /****************/
+    /* CONSTRUCTORS */
+    /****************/
+
+    /**
+     * Private constructor to avoid client applications to use constructor as we use the singleton design pattern
+     */
     private GbifClient(GbifInfo gbifInfo){
         this.gbifInfo=gbifInfo;
         this.mapParsedNameByScientificName = new TreeMap<String,JsonObject>();
@@ -112,6 +119,15 @@ public class GbifClient {
         this.mapCollectionInfoByInstitutionIdAndCollectionName = new TreeMap<String, JsonObject>();
     }
 
+
+    /******************/
+    /* PUBLIC METHODS */
+    /******************/
+
+    /**
+     * Method to get an instance of GbifClient as we use the singleton design pattern
+     * @return
+     */
     public static GbifClient getInstance(GbifInfo gbifInfo){
         if (instance==null){
             instance = new GbifClient(gbifInfo);
@@ -127,7 +143,7 @@ public class GbifClient {
             try{
                 gbifTaxonInfo = (JsonObject) NetUtils.doGetRequestJson(this.getApiUrl()+"/species/"+taxonId);
             } catch (Exception e){
-                logger.error("Error getting GBIF taxon info for taxonId="+taxonId);
+                this.getLogger().error("Error getting GBIF taxon info for taxonId="+taxonId);
             }
             this.getMapTaxonById().put(taxonId,gbifTaxonInfo);
         }
@@ -273,6 +289,11 @@ public class GbifClient {
         return collectionInfo;
     }
 
+
+    /*******************/
+    /* PRIVATE METHODS */
+    /*******************/
+
     private JsonObject getDataPaginated(String endPoint, int limit, int offset) throws Exception {
         JsonObject response =(JsonObject) NetUtils.doGetRequestJson(endPoint + "&limit=" + limit + "&offset=" + offset);
         int responseLimit = response.get("limit").getAsInt();
@@ -297,7 +318,7 @@ public class GbifClient {
                 CountryResponse countryResponse = NetUtils.getCountryInfoFromUrl(institutionInfo.getAsJsonObject().get("homepage").getAsString());
                 institutionCountry = countryResponse.getCountry().getIsoCode();
             } catch (Exception e){
-                logger.error("Error getting country from url address");
+                this.getLogger().error("Error getting country from url address");
             }
         }
         if (StringUtils.isNotBlank(institutionCountry)){

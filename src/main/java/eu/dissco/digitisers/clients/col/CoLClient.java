@@ -13,21 +13,26 @@ import java.util.TreeMap;
 
 public class CoLClient {
 
-    private final static Logger logger = LoggerFactory.getLogger(CoLClient.class);
+    /**************/
+    /* ATTRIBUTES */
+    /**************/
 
+    private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private static CoLClient instance=null;
+    private final String apiUrl ="http://webservice.catalogueoflife.org/col/webservice";
+    private Map<String,JsonObject> mapTaxonByScientificNameAndKingdom; //Map to improve efficiency of this class, so it doesn't need to call the external APIs when we already got results
 
-    private String apiUrl ="http://webservice.catalogueoflife.org/col/webservice";
 
-    //Hashmap to improve efficiency of this class, so it doesn't need to call the external APIs when we already got results
-    private Map<String,JsonObject> mapTaxonByScientificNameAndKingdom;
+    /***********************/
+    /* GETTERS AND SETTERS */
+    /***********************/
+
+    protected Logger getLogger() {
+        return logger;
+    }
 
     protected String getApiUrl() {
         return apiUrl;
-    }
-
-    protected void setApiUrl(String apiUrl) {
-        this.apiUrl = apiUrl;
     }
 
     protected Map<String, JsonObject> getMapTaxonByScientificNameAndKingdom() {
@@ -38,12 +43,27 @@ public class CoLClient {
         this.mapTaxonByScientificNameAndKingdom = mapTaxonByScientificNameAndKingdom;
     }
 
-    //private constructor to avoid client applications to use constructor
-    //as we use the singleton pattern
+
+    /****************/
+    /* CONSTRUCTORS */
+    /****************/
+
+    /**
+     * Private constructor to avoid client applications to use constructor as we use the singleton design pattern
+     */
     private CoLClient(){
         this.mapTaxonByScientificNameAndKingdom = new TreeMap<String,JsonObject>();
     }
 
+
+    /*******************/
+    /* PUBLIC METHODS */
+    /******************/
+
+    /**
+     * Method to get an instance of CoLClient as we use the singleton design pattern
+     * @return
+     */
     public static CoLClient getInstance(){
         if (instance==null){
             instance = new CoLClient();

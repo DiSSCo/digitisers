@@ -2,32 +2,30 @@ package eu.dissco.digitisers.clients.wiki;
 
 import com.google.gson.JsonObject;
 import eu.dissco.digitisers.utils.NetUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.net.URLEncoder;
 
 public class WikipediaClient extends WikiClient {
 
-    private final static Logger logger = LoggerFactory.getLogger(WikipediaClient.class);
 
-    private static WikipediaClient instance=null;
+    /****************/
+    /* CONSTRUCTORS */
+    /****************/
 
-    //private constructor to avoid client applications to use constructor
-    //as we use the singleton pattern
-    private WikipediaClient(){
+    /**
+     * Private constructor to avoid client applications to use constructor as we use the singleton design pattern
+     */
+    protected WikipediaClient(){
         super("https://en.wikipedia.org/w/api.php");
     }
 
-    public static WikipediaClient getInstance(){
-        if (instance==null){
-            instance = new WikipediaClient();
-        }
-        return instance;
-    }
+
+    /******************/
+    /* PUBLIC METHODS */
+    /******************/
 
     @Override
-    public String getClientName() {
+    public String getWikiType() {
         return "wikipedia";
     }
 
@@ -63,4 +61,5 @@ public class WikipediaClient extends WikiClient {
         }
         return pageUrl;
     }
+
 }

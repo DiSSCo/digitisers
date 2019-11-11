@@ -19,8 +19,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
-import java.net.URISyntaxException;
-import java.net.UnknownHostException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -29,55 +27,54 @@ import java.util.Map;
 import java.util.TreeMap;
 
 public class DigitalObjectRepositoryClient implements AutoCloseable {
-    private final static Logger logger = LoggerFactory.getLogger(DigitalObjectRepositoryClient.class);
 
+    /**************/
+    /* ATTRIBUTES */
+    /**************/
+
+    private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private static DigitalObjectRepositoryClient instance=null;
+    private final DigitalObjectRepositoryInfo digitalObjectRepositoryInfo;
+    private final DoipClient doipClient;
+    private final CordraClient restClient;
+    private final AuthenticationInfo authInfo;
+    private final ServiceInfo serviceInfo;
+    private Map<String,DigitalObject> mapSchemasRepository; //For efficiency, keep in memory schemas obtained by broker
 
-    private DigitalObjectRepositoryInfo digitalObjectRepositoryInfo;
-    private DoipClient doipClient;
-    private CordraClient restClient;
-    private AuthenticationInfo authInfo;
-    private ServiceInfo serviceInfo;
 
-    public enum OPERATION {
+    /**************/
+    /* ENUM TYPES */
+    /**************/
+
+    public enum DIGITAL_OBJECT_OPERATION {
         INSERT,
         UPDATE,
         DELETE
     }
 
-    //For efficiency, keep in memory schemas obtained by broker
-    private Map<String,DigitalObject> mapSchemasRepository;
+
+    /***********************/
+    /* GETTERS AND SETTERS */
+    /***********************/
+
+    protected Logger getLogger() {
+        return logger;
+    }
 
     protected DigitalObjectRepositoryInfo getDigitalObjectRepositoryInfo() {
         return digitalObjectRepositoryInfo;
-    }
-
-    protected void setDigitalObjectRepositoryInfo(DigitalObjectRepositoryInfo digitalObjectRepositoryInfo) {
-        this.digitalObjectRepositoryInfo = digitalObjectRepositoryInfo;
     }
 
     protected DoipClient getDoipClient() {
         return doipClient;
     }
 
-    protected void setDoipClient(DoipClient doipClient) {
-        this.doipClient = doipClient;
-    }
-
     protected AuthenticationInfo getAuthInfo() {
         return authInfo;
     }
 
-    protected void setAuthInfo(AuthenticationInfo authInfo) {
-        this.authInfo = authInfo;
-    }
-
     protected ServiceInfo getServiceInfo() {
         return serviceInfo;
-    }
-
-    protected void setServiceInfo(ServiceInfo serviceInfo) {
-        this.serviceInfo = serviceInfo;
     }
 
     public Map<String, DigitalObject> getMapSchemasRepository() {
@@ -92,22 +89,42 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
         return restClient;
     }
 
-    protected void setRestClient(CordraClient restClient) {
-        this.restClient = restClient;
+
+    /****************/
+    /* CONSTRUCTORS */
+    /****************/
+
+    /**
+     *  private constructor to avoid client applications to use constructor as we use the singleton design pattern
+     * @param digitalObjectRepositoryInfo
+     * @throws DigitalObjectRepositoryException
+     */
+    private DigitalObjectRepositoryClient(DigitalObjectRepositoryInfo digitalObjectRepositoryInfo) throws DigitalObjectRepositoryException {
+        try{
+            this.digitalObjectRepositoryInfo=digitalObjectRepositoryInfo;
+            this.doipClient=new DoipClient();
+            this.authInfo= new PasswordAuthenticationInfo(digitalObjectRepositoryInfo.getUsername(), digitalObjectRepositoryInfo.getPassword());
+            this.serviceInfo = new ServiceInfo(digitalObjectRepositoryInfo.getServiceId(), digitalObjectRepositoryInfo.getHostAddress(), digitalObjectRepositoryInfo.getDoipPort());
+            this.mapSchemasRepository=new TreeMap<String,DigitalObject>();
+            this.restClient = new HttpCordraClient(digitalObjectRepositoryInfo.getUrl(),digitalObjectRepositoryInfo.getUsername(),digitalObjectRepositoryInfo.getPassword());
+        } catch (Exception e){
+            throw new DigitalObjectRepositoryException("Error setting up DigitalObjectRepositoryClient " + e.getMessage(),e);
+        }
     }
 
-    //private constructor to avoid client applications to use constructor
-    //as we use the singleton pattern
-    private DigitalObjectRepositoryClient(DigitalObjectRepositoryInfo digitalObjectRepositoryInfo) throws URISyntaxException, UnknownHostException, CordraException {
-        this.digitalObjectRepositoryInfo=digitalObjectRepositoryInfo;
-        this.doipClient=new DoipClient();
-        this.authInfo= new PasswordAuthenticationInfo(digitalObjectRepositoryInfo.getUsername(), digitalObjectRepositoryInfo.getPassword());
-        this.serviceInfo = new ServiceInfo(digitalObjectRepositoryInfo.getServiceId(), digitalObjectRepositoryInfo.getHostAddress(), digitalObjectRepositoryInfo.getDoipPort());
-        this.mapSchemasRepository=new TreeMap<String,DigitalObject>();
-        this.restClient = new HttpCordraClient(digitalObjectRepositoryInfo.getUrl(),digitalObjectRepositoryInfo.getUsername(),digitalObjectRepositoryInfo.getPassword());
-    }
 
-    public static DigitalObjectRepositoryClient getInstance(DigitalObjectRepositoryInfo digitalObjectRepositoryInfo) throws URISyntaxException, UnknownHostException, CordraException {
+
+    /*******************/
+    /* PUBLIC METHODS */
+    /******************/
+
+    /**
+     * Method to get an instance of DigitalObjectRepositoryClient as we use the singleton design pattern
+     * @param digitalObjectRepositoryInfo
+     * @return
+     * @throws DigitalObjectRepositoryException
+     */
+    public static DigitalObjectRepositoryClient getInstance(DigitalObjectRepositoryInfo digitalObjectRepositoryInfo) throws DigitalObjectRepositoryException {
         if (instance==null){
             instance = new DigitalObjectRepositoryClient(digitalObjectRepositoryInfo);
         }
@@ -420,7 +437,7 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
         if (dsInRepository==null) {
             //The ds is valid and it is not found yet in the repository => create it
             dsSaved = this.create(ds);
-            dsSaved.attributes.addProperty("operation",OPERATION.INSERT.name());
+            dsSaved.attributes.addProperty("operation", DIGITAL_OBJECT_OPERATION.INSERT.name());
         } else{
             //The ds exists in repository => compare their contents and if there are differences => update ds
             if (this.haveDigitalSpecimensGotSameContent(ds,dsInRepository)){
@@ -431,7 +448,7 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
                 dsInRepository.attributes.add("content",ds.attributes.getAsJsonObject("content"));
                 dsInRepository.attributes.getAsJsonObject("content").addProperty("id",dsInRepository.id);
                 dsSaved = this.update(dsInRepository);
-                dsSaved.attributes.addProperty("operation",OPERATION.UPDATE.name());
+                dsSaved.attributes.addProperty("operation", DIGITAL_OBJECT_OPERATION.UPDATE.name());
             }
         }
 

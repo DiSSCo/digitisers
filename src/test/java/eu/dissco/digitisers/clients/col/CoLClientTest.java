@@ -16,12 +16,12 @@ public class CoLClientTest {
     private static CoLClient colClient;
 
     @BeforeClass
-    public static void init() throws Exception {
+    public static void setup() throws Exception {
         colClient = CoLClient.getInstance();
     }
 
     @AfterClass
-    public static void setup() {
+    public static void tearDown() {
 
     }
 

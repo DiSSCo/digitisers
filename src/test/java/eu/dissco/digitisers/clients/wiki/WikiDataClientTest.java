@@ -16,12 +16,12 @@ public class WikiDataClientTest {
     private static WikiClient wikiClient;
 
     @BeforeClass
-    public static void init() throws Exception {
-        wikiClient = WikiDataClient.getInstance();
+    public static void setup() throws Exception {
+        wikiClient = WikiClient.getInstance("wikidata");
     }
 
     @AfterClass
-    public static void setup() {
+    public static void tearDown() {
 
     }
 

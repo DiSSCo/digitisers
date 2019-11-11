@@ -11,14 +11,27 @@ import java.net.UnknownHostException;
 import java.util.Objects;
 
 public class DigitalObjectRepositoryInfo {
-    private final static Logger logger = LoggerFactory.getLogger(DigitalObjectRepositoryInfo.class);
 
+    /**************/
+    /* ATTRIBUTES */
+    /**************/
+
+    private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private String url;
     private Integer doipPort;
     private String handlePrefix;
     private String username;
     private String password;
     private Integer pageSize;
+
+
+    /***********************/
+    /* GETTERS AND SETTERS */
+    /***********************/
+
+    protected Logger getLogger() {
+        return logger;
+    }
 
     public String getUrl() {
         return url;
@@ -68,6 +81,20 @@ public class DigitalObjectRepositoryInfo {
         this.pageSize = pageSize;
     }
 
+
+    /****************/
+    /* CONSTRUCTORS */
+    /****************/
+
+    /**
+     * Create a DigitalObjectRepositoryInfo
+     * @param url
+     * @param doipPort
+     * @param handlePrefix
+     * @param username
+     * @param password
+     * @param pageSize
+     */
     public DigitalObjectRepositoryInfo(String url, int doipPort, String handlePrefix, String username, String password,
                                        int pageSize) {
         this.url = url;
@@ -77,6 +104,11 @@ public class DigitalObjectRepositoryInfo {
         this.password = password;
         this.pageSize=pageSize;
     }
+
+
+    /*******************/
+    /* PUBLIC METHODS */
+    /******************/
 
     public String getHostAddress() throws URISyntaxException, UnknownHostException {
         URI codraURI = new URI(this.getUrl());
@@ -89,6 +121,14 @@ public class DigitalObjectRepositoryInfo {
     public String getServiceId(){
         String serviceId = this.getHandlePrefix() + "/service";
         return serviceId;
+    }
+
+    public static DigitalObjectRepositoryInfo getDigitalObjectRepositoryInfoFromConfig(Configuration config){
+        DigitalObjectRepositoryInfo digitalObjectRepositoryInfo = new DigitalObjectRepositoryInfo(config.getString("digitalObjectRepository.url"),
+                config.getInt("digitalObjectRepository.doipPort"),config.getString("digitalObjectRepository.handlePrefix"),
+                config.getString("digitalObjectRepository.username"),config.getString("digitalObjectRepository.password"),
+                config.getInt("digitalObjectRepository.searchPageSize"));
+        return digitalObjectRepositoryInfo;
     }
 
     @Override
@@ -119,13 +159,5 @@ public class DigitalObjectRepositoryInfo {
                 ", password='" + password + '\'' +
                 ", pageSize='" + pageSize + '\'' +
                 '}';
-    }
-
-    public static DigitalObjectRepositoryInfo getDigitalObjectRepositoryInfoFromConfig(Configuration config){
-        DigitalObjectRepositoryInfo digitalObjectRepositoryInfo = new DigitalObjectRepositoryInfo(config.getString("digitalObjectRepository.url"),
-                config.getInt("digitalObjectRepository.doipPort"),config.getString("digitalObjectRepository.handlePrefix"),
-                config.getString("digitalObjectRepository.username"),config.getString("digitalObjectRepository.password"),
-                config.getInt("digitalObjectRepository.searchPageSize"));
-        return digitalObjectRepositoryInfo;
     }
 }

@@ -57,7 +57,7 @@ import eu.dissco.digitisers.clients.ebi.openapi.auth.ApiKeyAuth;
 
 public class ApiClient {
 
-    private final static Logger logger = LoggerFactory.getLogger(ApiClient.class);
+    private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
     private String basePath = "https://www.ebi.ac.uk/ebisearch/ws/rest";
     private boolean debugging = false;
@@ -80,6 +80,10 @@ public class ApiClient {
     private JSON json;
 
     private HttpLoggingInterceptor loggingInterceptor;
+
+    protected Logger getLogger() {
+        return logger;
+    }
 
     /*
      * Basic constructor for ApiClient
@@ -126,7 +130,7 @@ public class ApiClient {
                 }
             });
         } catch (NoSuchAlgorithmException | KeyManagementException e) {
-           logger.error(e.getMessage());
+           this.getLogger().error(e.getMessage());
         }
 
         httpClient = builder.build();

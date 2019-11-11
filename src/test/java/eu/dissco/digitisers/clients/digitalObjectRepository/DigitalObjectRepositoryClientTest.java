@@ -4,6 +4,7 @@ import com.google.gson.JsonObject;
 import eu.dissco.digitisers.utils.FileUtils;
 import net.dona.doip.client.DigitalObject;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.lucene.queryparser.classic.QueryParserBase;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -27,14 +28,14 @@ public class DigitalObjectRepositoryClientTest {
     private static DigitalObjectRepositoryClient digitalObjectRepositoryClient;
 
     @BeforeClass
-    public static void init() throws Exception {
+    public static void setup() throws ConfigurationException, DigitalObjectRepositoryException {
         Configuration config = FileUtils.loadConfigurationFromResourceFile("config.properties");
         DigitalObjectRepositoryInfo digitalObjectRepositoryInfo =  DigitalObjectRepositoryInfo.getDigitalObjectRepositoryInfoFromConfig(config);
         digitalObjectRepositoryClient = DigitalObjectRepositoryClient.getInstance(digitalObjectRepositoryInfo);
     }
 
     @AfterClass
-    public static void setup() {
+    public static void tearDown() {
         digitalObjectRepositoryClient.close();
     }
 
@@ -47,13 +48,11 @@ public class DigitalObjectRepositoryClientTest {
         assertTrue("Protocol should be >=2.0",protocolVersion>=2.0);
     }
 
-
     @Test
     public void testDoipServerListOperations() throws DigitalObjectRepositoryException {
         List<String> operations = digitalObjectRepositoryClient.listOperations();
         operations.forEach(System.out::println);
     }
-    
 
     @Test
     public void testGetAllSchemas() throws DigitalObjectRepositoryException{
@@ -172,11 +171,8 @@ public class DigitalObjectRepositoryClientTest {
         assertTrue("List of ds modified by "+ username + " should have at least 1 element", listDs.size()>=1);
     }
 
-
     @Test
     public void testGetDigitalSpecimensCreatedBetweenDateRange() throws DigitalObjectRepositoryException {
-        //LocalDateTime startDatetime=LocalDateTime.parse("2019-10-01T00:00:00.000");
-        //LocalDateTime endDatetime=LocalDateTime.parse("2019-10-31T23:59:59.999");
         LocalDateTime startDatetime = LocalDateTime.now().minusDays(7);
         LocalDateTime endDatetime = LocalDateTime.now();
 
@@ -210,8 +206,6 @@ public class DigitalObjectRepositoryClientTest {
 
     @Test
     public void testGetDigitalSpecimensModifiedBetweenDateRange() throws DigitalObjectRepositoryException {
-        //LocalDateTime startDatetime=LocalDateTime.parse("2019-10-01T00:00:00.000");
-        //LocalDateTime endDatetime=LocalDateTime.parse("2019-10-31T23:59:59.999");
         LocalDateTime startDatetime = LocalDateTime.now().minusDays(7);
         LocalDateTime endDatetime = LocalDateTime.now();
 

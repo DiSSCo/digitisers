@@ -15,12 +15,12 @@ public class CountryClientTest {
     private static CountryClient countryClient;
 
     @BeforeClass
-    public static void init() throws Exception {
+    public static void setup() throws Exception {
         countryClient = CountryClient.getInstance();
     }
 
     @AfterClass
-    public static void setup() {
+    public static void tearDown() {
 
     }
 
