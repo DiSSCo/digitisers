@@ -9,7 +9,8 @@ import org.slf4j.LoggerFactory;
 
 import java.net.URLEncoder;
 import java.util.Map;
-import java.util.TreeMap;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class CoLClient {
 
@@ -20,7 +21,7 @@ public class CoLClient {
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private static CoLClient instance=null;
     private final String apiUrl ="http://webservice.catalogueoflife.org/col/webservice";
-    private Map<String,JsonObject> mapTaxonByScientificNameAndKingdom; //Map to improve efficiency of this class, so it doesn't need to call the external APIs when we already got results
+    private Map<String, Optional<JsonObject>> mapTaxonByScientificNameAndKingdom; //Map to improve efficiency of this class, so it doesn't need to call the external APIs when we already got results
 
 
     /***********************/
@@ -35,11 +36,11 @@ public class CoLClient {
         return apiUrl;
     }
 
-    protected Map<String, JsonObject> getMapTaxonByScientificNameAndKingdom() {
+    protected Map<String, Optional<JsonObject>> getMapTaxonByScientificNameAndKingdom() {
         return mapTaxonByScientificNameAndKingdom;
     }
 
-    protected void setMapTaxonByScientificNameAndKingdom(Map<String, JsonObject> mapTaxonByScientificNameAndKingdom) {
+    protected void setMapTaxonByScientificNameAndKingdom(Map<String, Optional<JsonObject>> mapTaxonByScientificNameAndKingdom) {
         this.mapTaxonByScientificNameAndKingdom = mapTaxonByScientificNameAndKingdom;
     }
 
@@ -52,7 +53,7 @@ public class CoLClient {
      * Private constructor to avoid client applications to use constructor as we use the singleton design pattern
      */
     private CoLClient(){
-        this.mapTaxonByScientificNameAndKingdom = new TreeMap<String,JsonObject>();
+        this.mapTaxonByScientificNameAndKingdom = new ConcurrentHashMap<String,Optional<JsonObject>>();
     }
 
 
@@ -71,11 +72,20 @@ public class CoLClient {
         return instance;
     }
 
+    /**
+     * Function that returns the information found in the Catalogue of Life for the taxon concept requested (canonicalName,rank,kindgdom)
+     * @param canonicalName Canonical name of the taxon concept
+     * @param rank nane of the rank of the taxon concept
+     * @param kingdomName name of the kingdom where this taxon concept belongs to
+     * @return JsonObject with the information found in the Catalogue of Life for the taxon concept, or null if the taxon concept
+     * was not found or if there was a problem getting it
+     * @throws Exception
+     */
     public JsonObject getTaxonInformation(String canonicalName, String rank, String kingdomName) throws Exception {
         JsonObject taxonInfoObj = null;
 
         if (this.getMapTaxonByScientificNameAndKingdom().containsKey(canonicalName + "#" + kingdomName)) {
-            taxonInfoObj=this.getMapTaxonByScientificNameAndKingdom().get(canonicalName + "#" + kingdomName);
+            taxonInfoObj=this.getMapTaxonByScientificNameAndKingdom().get(canonicalName + "#" + kingdomName).orElse(null);
         } else {
             String canonicalNameEncoded = URLEncoder.encode(canonicalName, "UTF-8");
             JsonObject colResponse = (JsonObject) NetUtils.doGetRequestJson(this.getApiUrl() +
@@ -97,7 +107,7 @@ public class CoLClient {
                     }
                 }
             }
-            this.getMapTaxonByScientificNameAndKingdom().put(canonicalName + "#" + kingdomName,taxonInfoObj);
+            this.getMapTaxonByScientificNameAndKingdom().put(canonicalName + "#" + kingdomName,Optional.ofNullable(taxonInfoObj));
         }
         return taxonInfoObj;
     }

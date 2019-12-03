@@ -5,7 +5,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
-import java.util.TreeMap;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 public abstract class WikiClient {
 
@@ -15,7 +16,7 @@ public abstract class WikiClient {
     protected final Logger logger = LoggerFactory.getLogger(this.getClass());
     private static WikiClient instance=null;
     private String apiUrl;
-    private Map<String,JsonObject> mapPageInfoByCanonicalNameAndKingdom; //Map to improve efficiency of this class, so it doesn't need to call the external APIs when we already got results
+    private Map<String, Optional<JsonObject>> mapPageInfoByCanonicalNameAndKingdom; //Map to improve efficiency of this class, so it doesn't need to call the external APIs when we already got results
 
 
     /***********************/
@@ -30,11 +31,11 @@ public abstract class WikiClient {
         return apiUrl;
     }
 
-    protected Map<String, JsonObject> getMapPageInfoByCanonicalNameAndKingdom() {
+    protected Map<String, Optional<JsonObject>> getMapPageInfoByCanonicalNameAndKingdom() {
         return mapPageInfoByCanonicalNameAndKingdom;
     }
 
-    protected void setMapPageInfoByCanonicalNameAndKingdom(Map<String, JsonObject> mapPageInfoByCanonicalNameAndKingdom) {
+    protected void setMapPageInfoByCanonicalNameAndKingdom(Map<String, Optional<JsonObject>> mapPageInfoByCanonicalNameAndKingdom) {
         this.mapPageInfoByCanonicalNameAndKingdom = mapPageInfoByCanonicalNameAndKingdom;
     }
 
@@ -44,7 +45,7 @@ public abstract class WikiClient {
     /****************/
     protected WikiClient(String apiUrl){
         this.apiUrl = apiUrl;
-        this.mapPageInfoByCanonicalNameAndKingdom = new TreeMap<String,JsonObject>();
+        this.mapPageInfoByCanonicalNameAndKingdom = new ConcurrentHashMap<String,Optional<JsonObject>>();
     }
 
 
@@ -52,10 +53,26 @@ public abstract class WikiClient {
     /* ABSTRACT METHODS */
     /********************/
 
+    /**
+     * Function to get information about the taxon concept hold in the wiki
+     * @param canonicalName canonical name of the taxon concept to search
+     * @param kingdom name of the kingdom the taxon concept belongs to
+     * @return Json object with information of the page for the taxon concept, or null if not found
+     * @throws Exception
+     */
     public abstract JsonObject getWikiInformation(String canonicalName, String kingdom) throws Exception;
 
+    /**
+     * Function that get the page url of the given wiki info object
+     * @param wikiInfo wiki info object from where to obtain the wiki page url
+     * @return wiki page url, or null if not found
+     */
     public abstract String getPageURL(JsonObject wikiInfo);
 
+    /**
+     * Function that returns the type of wiki we are using
+     * @return type of the wiki (wikipedia or wikidata)
+     */
     public abstract String getWikiType();
 
 

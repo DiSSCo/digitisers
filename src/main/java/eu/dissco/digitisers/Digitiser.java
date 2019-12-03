@@ -1,8 +1,5 @@
 package eu.dissco.digitisers;
 
-import eu.dissco.digitisers.clients.digitalObjectRepository.DigitalObjectRepositoryException;
-import eu.dissco.digitisers.tasks.DigitalObjectProcessor;
-import eu.dissco.digitisers.tasks.DigitalObjectVisitor;
 import eu.dissco.digitisers.utils.EmailUtils;
 import eu.dissco.digitisers.utils.FileUtils;
 import org.apache.commons.configuration2.Configuration;
@@ -44,8 +41,8 @@ public abstract class Digitiser {
     /****************/
 
     /**
-     * Create a Digitiser from a config file
-     * @param configFilePath
+     * Create a Digitiser with properties from the config file
+     * @param configFilePath path of the configuration file to be used in this digitiser
      * @throws ConfigurationException
      */
     public Digitiser(String configFilePath) throws ConfigurationException {
@@ -57,39 +54,36 @@ public abstract class Digitiser {
     /* ABSTRACT METHODS */
     /********************/
 
-    protected abstract int readDigitalSpecimensData(List<String> args, DigitalObjectVisitor digitalObjectVisitor);
+    /***
+     * Abstract method that needs to be implemented in the specific digitiser classes and depending on the parameters
+     * will start certain digitisation technique in the given class (eg: dwca file importation, dwca folder importation, etc.)
+     * @param args Command line arguments that indicate what digitiser should be used as well as the parameters it requires
+     */
+    protected abstract void digitiseDigitalSpecimensData(List<String> args);
 
 
     /******************/
     /* PUBLIC METHODS */
     /******************/
 
-    /***
-     * Abstract method that needs to be implemented in the specific digitiser classes and depending on the parameters
-     * will start certain digitisation technique in the given class (eg: dwca file importation, dwca folder importation, etc.)
+    /**
+     * Digitise digital specimens from the datasource passed as argument, sending the result of the operation by
+     * email to the list of addresses defined in the configuration file.
+     * Note: The process, will not stop if a digital specimen fails to be read or processed, it will noted downed in
+     * the log file, but it will try to carry on processing the next digital specimen
      * @param args
+     * @return List of digital specimen processed as result of digitisation
      */
-    public void digitise(List<String> args) throws DigitalObjectRepositoryException {
-        DigitalObjectVisitor digitalObjectVisitor=null;
-        try{
-            LocalDateTime startDateTime = LocalDateTime.now();
+    public void digitise(List<String> args) {
+        //Digitise digital specimens from  a data source (it could be a dwc-a file, a gbif download request, etc)
+        LocalDateTime digitisationStartDateTime = LocalDateTime.now();
+        this.digitiseDigitalSpecimensData(args);
+        this.getLogger().info("Digitisation completed.");
+        LocalDateTime digitisationEndDateTime= LocalDateTime.now();
 
-            //Read data from source (it could be a dwc-a file, a gbif download request, etc)
-            //processing each Digital Specimen as soon as it is read using the Digital Object Processor
-            digitalObjectVisitor = new DigitalObjectProcessor(this.getConfig());
-            int numDsRead = this.readDigitalSpecimensData(args,digitalObjectVisitor);
-
-            this.getLogger().info("Digitisation completed.");
-
-            LocalDateTime endDateTime= LocalDateTime.now();
-            List<String> emailAddresses = this.getConfig().getList(String.class,"digitiser.sendDigitisationResultsByEmailTo");
-            if (emailAddresses.size()>0){
-                boolean emailSent = EmailUtils.sendResultDigitiserExecution(startDateTime,endDateTime,emailAddresses);
-            }
-        } finally {
-            if (digitalObjectVisitor!=null){
-                digitalObjectVisitor.close();
-            }
+        List<String> emailAddresses = this.getConfig().getList(String.class,"digitiser.sendDigitisationResultsByEmailTo");
+        if (emailAddresses.size()>0){
+            EmailUtils.sendResultDigitiserExecution(digitisationStartDateTime,digitisationEndDateTime,emailAddresses);
         }
     }
 
@@ -97,8 +91,13 @@ public abstract class Digitiser {
     /*****************************************************/
     /* Static methods to execute class from command line */
     /*****************************************************/
-
-    public static void main(String[] args) throws Exception {
+    /**
+     * Initial point of entry for the application. According to the command line arguments passed as parameters it will
+     * instanciate a specific digitisier and tell it to digitise the data
+     * @param args
+     * @throws Exception
+     */
+    public static void main(String[] args) {
         Digitiser digitiser = null;
         try{
             List<String> listArgs = new ArrayList<String>(Arrays.asList(args));

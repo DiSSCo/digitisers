@@ -2,10 +2,7 @@ package eu.dissco.digitisers.utils;
 
 import com.google.common.collect.MapDifference;
 import com.google.common.collect.Maps;
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
+import com.google.gson.*;
 import com.google.gson.reflect.TypeToken;
 import com.jayway.jsonpath.JsonPath;
 import org.everit.json.schema.Schema;
@@ -18,21 +15,46 @@ import java.util.Map;
 
 public class JsonUtils {
 
+    /**************/
+    /* ATTRIBUTES */
+    /**************/
+
     private final static Logger logger = LoggerFactory.getLogger(JsonUtils.class);
 
+
+    /******************/
+    /* PUBLIC METHODS */
+    /******************/
+
+    /**
+     * Validate the json string passed a parameter against the json schema
+     * @param json json string to be validated
+     * @param schema json string with the schema to be used in the validation
+     * @param checkRequiredId flag to indicate if the id attribute should not be included as required field
+     *                        even if the schema indicate it to be required
+     * @return true if json is valid according to the schema or false otherwise
+     */
     public static boolean validateJsonAgainstSchema(String json, String schema, boolean checkRequiredId){
         try {
             Gson gson = new Gson();
             JsonObject jsonObject = gson.fromJson(json, JsonObject.class);
             JsonObject jsonSchema = gson.fromJson(schema, JsonObject.class);
 
-            return validateJsonAgainstSchema(jsonObject,jsonSchema,checkRequiredId);
+            return JsonUtils.validateJsonAgainstSchema(jsonObject,jsonSchema,checkRequiredId);
         } catch(Exception e){
             logger.warn("Error validating json against schema",e);
             return false;
         }
     }
 
+    /**
+     * Validate the json object passed a parameter against the json schema
+     * @param jsonObject json object to be validated
+     * @param jsonSchema json object with the schema to be used in the validation
+     * @param checkRequiredId flag to indicate if the id attribute should not be included as required field
+     *                        even if the schema indicate it to be required
+     * @return true if json is valid according to the schema or false otherwise
+     */
     public static boolean validateJsonAgainstSchema(JsonObject jsonObject, JsonObject jsonSchema, boolean checkRequiredId){
         try {
             if (!checkRequiredId){
@@ -72,25 +94,47 @@ public class JsonUtils {
         }
     }
 
+    /**
+     * Convert a com.google.gson.JsonObject to a org.json.JSONObject
+     * @param gson com.google.gson.JsonObject to conver to org.json.JSONObject
+     * @return org.json.JSONObject from converting the com.google.gson.JsonObject
+     */
     public static org.json.JSONObject convertGsonToOrgJson(JsonObject gson){
         return new org.json.JSONObject(gson.getAsJsonObject().toString());
     }
 
 
+    /**
+     * Filter a jsoenElment using json path expression
+     * @param jsonElement Jsoen element on which we want to run the jsonPathExpression
+     * @param jsonPathExpression jsonPathExpression to be executed
+     * @return Object with the result of executing the jsonPathExpression
+     */
     public static Object filterJson(JsonElement jsonElement, String jsonPathExpression){
-        Gson gson = new Gson();
-        String json = gson.toJson(jsonElement);
-        return filterJson(json,jsonPathExpression);
+        String json = JsonUtils.serializeObject(jsonElement);
+        return JsonUtils.filterJson(json,jsonPathExpression);
     }
 
+    /**
+     * Filter a json string using json path expression
+     * @param json json string on which we want to run the jsonPathExpression
+     * @param jsonPathExpression jsonPathExpression to be executed
+     * @return Object with the result of executing the jsonPathExpression
+     */
     public static Object filterJson(String json, String jsonPathExpression){
         return JsonPath.parse(json).read(jsonPathExpression, Object.class);
     }
 
+    /**
+     * Get the differences between 2 json elements
+     * @param leftJsonElem
+     * @param rightJsonElem
+     * @return MapDifference object with the result of the comparision
+     */
     public static MapDifference<String, Object> compareJsonElements(JsonElement leftJsonElem, JsonElement rightJsonElem){
         Gson gson = new Gson();
-        String leftJson = gson.toJson(leftJsonElem);
-        String rightJson = gson.toJson(rightJsonElem);
+        String leftJson = JsonUtils.serializeObject(leftJsonElem);
+        String rightJson = JsonUtils.serializeObject(rightJsonElem);
         Type mapType = new TypeToken<Map<String, Object>>(){}.getType();
         Map<String, Object> leftMap = gson.fromJson(leftJson, mapType);
         Map<String, Object> rightMap = gson.fromJson(rightJson, mapType);
@@ -102,5 +146,69 @@ public class JsonUtils {
         return Maps.difference(leftMap, rightMap);
     }
 
+    /**
+     * Serialize a json object using a custom strategy (not serializing logger)
+     * @param obj Object to be serialize as json
+     * @return Json string with the result of the serialization
+     */
+    public static String serializeObject(Object obj){
+        ExclusionStrategy strategy = new ExclusionStrategy() {
+            @Override
+            public boolean shouldSkipClass(Class<?> clazz) {
+                return false;
+            }
+
+            @Override
+            public boolean shouldSkipField(FieldAttributes field) {
+                return field.getName().startsWith("logger");
+            }
+        };
+
+        Gson gson = new GsonBuilder()
+                .setExclusionStrategies(strategy)
+                .create();
+        return gson.toJson(obj);
+    }
+
+    /**
+     * Add a property to a json object
+     * @param jsonObject json object on which we want to add the property
+     * @param property name of the property to be added
+     * @param value value of the property to be added
+     */
+    public static void addPropertyToJsonObj(JsonObject jsonObject, String property, Object value){
+        jsonObject.add(property,JsonUtils.convertObjectToJsonElement(value));
+    }
+
+    /**
+     * Function that converts an object into a json element
+     * @param obj Object to be converted as json element
+     * @return json element as result of the conversion
+     */
+    public static JsonElement convertObjectToJsonElement(Object obj){
+        JsonElement jsonElement=null;
+        if(obj instanceof MapDifference){
+            jsonElement = JsonUtils.convertMapDifferenceToJsonElement((MapDifference)obj);
+        } else{
+            Gson gson = new Gson();
+            jsonElement = gson.toJsonTree(obj);
+        }
+        return jsonElement;
+    }
+
+    /**
+     * Function that converts a MapDifference object into a json object
+     * Note: the function convertObjectToJsonElement doesn't serialize correctly the attribute differences
+     * @param mapDifference MapDifference object to be converted
+     * @return json element as result of the conversion
+     */
+    private static JsonElement convertMapDifferenceToJsonElement(MapDifference mapDifference){
+        Gson gson = new Gson();
+        JsonElement jsonElement = gson.toJsonTree(mapDifference);
+        jsonElement.getAsJsonObject().remove("differences");
+        Object differences = mapDifference.entriesDiffering();
+        jsonElement.getAsJsonObject().add("differences",JsonUtils.convertObjectToJsonElement(differences));
+        return jsonElement;
+    }
 
 }

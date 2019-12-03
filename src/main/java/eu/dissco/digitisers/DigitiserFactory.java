@@ -11,11 +11,20 @@ import java.util.List;
 
 public class DigitiserFactory {
 
+    /**************/
+    /* ATTRIBUTES */
+    /**************/
+
     private final static Logger logger = LoggerFactory.getLogger(DigitiserFactory.class);
 
+
+    /******************/
+    /* PUBLIC METHODS */
+    /******************/
+
     /**
-     * Get the specific DiSSCo digitiser according to the one requested in command line parameter. Using the factory design pattern
-     * @param args
+     * Get the specific DiSSCo digitiser according to the one requested from the command line parameters by using the factory design pattern
+     * @param args Command line arguments to be used to determined what specific digitiser must be returned
      * @return Specific digitiser
      * @throws ParseException
      * @throws ConfigurationException
@@ -47,7 +56,8 @@ public class DigitiserFactory {
                     throw new ParseException("Digitisation method not supported");
             }
 
-            //Remove "method" and "config" arguments, as not longer required
+            //Remove "method" and "config" arguments, as they are not longer required to be passed to the
+            //specific digitiser
             List<String> commandLineArgs = Arrays.asList(commandLine.getArgs());
             for (Iterator<String> iter = args.iterator(); iter.hasNext(); ) {
                 String arg = iter.next();

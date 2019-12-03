@@ -28,15 +28,38 @@ import java.net.*;
 
 public class NetUtils {
 
-    private final static Logger logger = LoggerFactory.getLogger(JsonUtils.class);
+    /**************/
+    /* ATTRIBUTES */
+    /**************/
 
+    private final static Logger logger = LoggerFactory.getLogger(NetUtils.class);
+
+
+    /******************/
+    /* PUBLIC METHODS */
+    /******************/
+
+    /**
+     * Function that do a get request to the url passed as parameter and return the result as string
+     * @param sUrl string of the url to do the request
+     * @return String with the result of the GET request
+     * @throws Exception
+     */
     public static String doGetRequest(String sUrl) throws Exception{
         return doGetRequest(sUrl,null);
     }
 
+    /**
+     * Function that do a get request to the url passed as parameter with the authentication received as second parameter
+     * and return the result as string
+     * @param sUrl string of the url to do the request
+     * @param auth authentication info to be used in the request
+     * @return String with the result of the GET request
+     * @throws Exception
+     */
     public static String doGetRequest(String sUrl, String auth) throws Exception{
         String result=null;
-        try (CloseableHttpClient httpClient = buildUnsafeSslHttpClient()){
+        try (CloseableHttpClient httpClient = NetUtils.buildUnsafeSslHttpClient()){
             HttpGet request = new HttpGet(sUrl);
             if (StringUtils.isNotBlank(auth)) request.setHeader(HttpHeaders.AUTHORIZATION, auth);
             try (CloseableHttpResponse response = httpClient.execute(request)) {
@@ -48,16 +71,30 @@ public class NetUtils {
         return result;
     }
 
+    /**
+     * Function that download the file indicated as parameter
+     * @param sFileURL string of the url of the file to be downloaded
+     * @return File downloaded
+     * @throws Exception
+     */
     public static File downloadFile(String sFileURL) throws Exception {
         return downloadFile(sFileURL,null);
     }
 
+    /**
+     * Function that download the file indicated as parameter, connecting to server with the authentication info passed
+     * as second parameter
+     * @param sFileURL string of the url of the file to be downloaded
+     * @param auth authentication info to be used in the request
+     * @return File downloaded
+     * @throws Exception
+     */
     public static File downloadFile(String sFileURL, String auth) throws Exception {
         logger.debug("Downloading file " + sFileURL);
         URL url = new URL(sFileURL);
         File tempFile = File.createTempFile(FilenameUtils.getBaseName(url.getPath()), FilenameUtils.getExtension(url.getPath()));
 
-        try (CloseableHttpClient httpClient = buildUnsafeSslHttpClient()){
+        try (CloseableHttpClient httpClient = NetUtils.buildUnsafeSslHttpClient()){
             HttpGet request = new HttpGet(sFileURL);
             if (StringUtils.isNotBlank(auth)) request.setHeader(HttpHeaders.AUTHORIZATION, auth);
             try (CloseableHttpResponse response = httpClient.execute(request)) {
@@ -74,27 +111,57 @@ public class NetUtils {
         return tempFile;
     }
 
+    /**
+     * Function that does a get request to the url passed as parameter and return the JsonElement returned by the server
+     * @param sUrl string of the url to do the request
+     * @return JsonElement with the result of the GET request
+     * @throws Exception
+     */
     public static JsonElement doGetRequestJson(String sUrl) throws Exception{
         return doGetRequestJson(sUrl,null);
     }
 
+    /**
+     * Function that does a get request to the url passed as parameter with the authentication received as second parameter
+     * and return the JsonElement returned by the server
+     * @param sUrl string of the url to do the request
+     * @param auth authentication info to be used in the request
+     * @return JsonElement with the result of the GET request
+     * @throws Exception
+     */
     public static JsonElement doGetRequestJson(String sUrl, String auth) throws Exception{
         String response = doGetRequest(sUrl,auth);
         Gson gson = new Gson();
         return gson.fromJson(response,JsonElement.class);
     }
 
+    /**
+     * Function that does a post request to the url passed a parameter sending in the body the jsonElement received as
+     * second parameter
+     * @param sUrl url to do the post
+     * @param jsonElement jsonElement to be sent in the body
+     * @return JsonElement with the result of the POST request
+     * @throws Exception
+     */
     public static JsonElement doPostRequestJson(String sUrl, JsonElement jsonElement) throws Exception{
         return doPostRequestJson(sUrl,null,jsonElement);
     }
 
-    public static JsonElement doPostRequestJson(String sUrl, String auth,JsonElement jsonElement) throws Exception{
+    /**
+     * Function that does a post request to the url passed a parameter using the authentication info passed as second
+     * parameter and sending in the body the jsonElement received as third parameter
+     * @param sUrl url to do the post
+     * @param auth authentication info to be used in the request
+     * @param jsonElement jsonElement to be sent in the body
+     * @return JsonElement with the result of the POST request
+     * @throws Exception
+     */
+    public static JsonElement doPostRequestJson(String sUrl, String auth, JsonElement jsonElement) throws Exception{
         JsonElement result = null;
 
         Gson gson = new Gson();
-        StringEntity jsonDataEntity = new StringEntity(gson.toJson(jsonElement));
-
-        try (CloseableHttpClient httpClient = buildUnsafeSslHttpClient()){
+        StringEntity jsonDataEntity = new StringEntity(JsonUtils.serializeObject(jsonElement));
+        try (CloseableHttpClient httpClient = NetUtils.buildUnsafeSslHttpClient()){
             HttpPost request = new HttpPost(sUrl);
             request.setHeader(HttpHeaders.ACCEPT, "application/json");
             request.setHeader(HttpHeaders.CONTENT_TYPE, "application/json");
@@ -112,6 +179,11 @@ public class NetUtils {
     }
 
 
+    /**
+     * Function to obtain a closeable unsafe http client (trust any machine)
+     * @return CloseableHttpClient that will allow to send request to any machine without problems of trusting SSL
+     * @throws Exception
+     */
     public static CloseableHttpClient buildUnsafeSslHttpClient() throws Exception {
         // Create empty HostnameVerifier
         HostnameVerifier allHostsValid = new HostnameVerifier() {
@@ -146,13 +218,26 @@ public class NetUtils {
         return client;
     }
 
-
+    /**
+     * Get the last segment of a URL
+     * @param sURL string of the url to which we want to obtain the last segment
+     * @return
+     * @throws URISyntaxException
+     */
     public static String getLastSegmentOfUrl(String sURL) throws URISyntaxException {
         URI uri = new URI(sURL);
         String path = uri.getPath();
         return path.substring(path.lastIndexOf('/') + 1);
     }
 
+    /**
+     * Function to get country information of the machine that is hosting the url passed as parameter
+     * Note: It uses GeoLite2 country database to obtain the information from the IP address
+     * @param sUrl url of the machine for which to get its country information
+     * @return country information of the machine that is hosting the url
+     * @throws IOException
+     * @throws GeoIp2Exception
+     */
     public static CountryResponse getCountryInfoFromUrl(String sUrl) throws IOException, GeoIp2Exception {
         InputStream geoLite2DbInputStream = null;
         try {

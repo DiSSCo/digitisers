@@ -14,11 +14,8 @@ public class DigitiserTest {
 
     private final static Logger logger = LoggerFactory.getLogger(DwcaDigitiserTest.class);
 
-    private static Digitiser digitiser;
-
     @BeforeClass
     public static void setup() throws Exception {
-        digitiser=null;
     }
 
     @AfterClass
@@ -43,7 +40,21 @@ public class DigitiserTest {
                 "-c", configPropertiesFilePath,
                 "-f", Resources.getResource(dwcaFilePath).getPath()
         ));
-        digitiser = DigitiserFactory.getDigitiser(commandLineArgs);
+        Digitiser digitiser = DigitiserFactory.getDigitiser(commandLineArgs);
+        digitiser.digitise(commandLineArgs);
+    }
+
+    @Test(expected = Test.None.class /* no exception expected */)
+    public void testStartDigitisationDwcaByFile_big() throws Exception{
+        String digitiserMethod="dwca";
+        String configPropertiesFilePath = Resources.getResource("config.properties").getPath();
+        String dwcaFilePath = "GBIF_DwC-a/big/0029199-190918142434337_Canis_lupus.zip";
+        List<String> commandLineArgs = new ArrayList<String>(Arrays.asList(
+                "-m", digitiserMethod,
+                "-c", configPropertiesFilePath,
+                "-f", Resources.getResource(dwcaFilePath).getPath()
+        ));
+        Digitiser digitiser = DigitiserFactory.getDigitiser(commandLineArgs);
         digitiser.digitise(commandLineArgs);
     }
 
@@ -51,13 +62,13 @@ public class DigitiserTest {
     public void testStartDigitisationDwcaByFolder() throws Exception{
         String digitiserMethod="dwca";
         String configPropertiesFilePath = Resources.getResource("config.properties").getPath();
-        String folderPath = "GBIF_DwC-a/";
+        String folderPath = "GBIF_DwC-a/small";
         List<String> commandLineArgs = new ArrayList<String>(Arrays.asList(
                 "-m", digitiserMethod,
                 "-c", configPropertiesFilePath,
                 "-d", Resources.getResource(folderPath).getPath()
         ));
-        digitiser = DigitiserFactory.getDigitiser(commandLineArgs);
+        Digitiser digitiser = DigitiserFactory.getDigitiser(commandLineArgs);
         digitiser.digitise(commandLineArgs);
     }
 
@@ -72,7 +83,7 @@ public class DigitiserTest {
                 "-c", configPropertiesFilePath,
                 "-u", dwcaUrl
         ));
-        digitiser = DigitiserFactory.getDigitiser(commandLineArgs);
+        Digitiser digitiser = DigitiserFactory.getDigitiser(commandLineArgs);
         digitiser.digitise(commandLineArgs);
     }
 
@@ -81,14 +92,14 @@ public class DigitiserTest {
         String digitiserMethod="gbif";
         String configPropertiesFilePath = Resources.getResource("config.properties").getPath();
         String scientificName = "Agathis montana";
-        String kindom = "Plantae";
+        String kingdom = "Plantae";
         List<String> commandLineArgs = new ArrayList<String>(Arrays.asList(
                 "-m", digitiserMethod,
                 "-c", configPropertiesFilePath,
                 "-n", scientificName,
-                "-k", kindom
+                "-k", kingdom
         ));
-        digitiser = DigitiserFactory.getDigitiser(commandLineArgs);
+        Digitiser digitiser = DigitiserFactory.getDigitiser(commandLineArgs);
         digitiser.digitise(commandLineArgs);
     }
 

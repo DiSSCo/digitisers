@@ -7,7 +7,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
-import java.util.TreeMap;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class CountryClient {
 
@@ -18,7 +19,7 @@ public class CountryClient {
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private static CountryClient instance=null;
     private final String apiUrl ="https://restcountries.eu/rest/v2"; //We could also use http://api.gbif.org/v1/enumeration/country as backup service in case restcountries.eu disappears
-    private Map<String, JsonObject> mapCountryInfoNameByCode; //Map to improve efficiency of this class, so it doesn't need to call the external APIs when we already got results
+    private Map<String, Optional<JsonObject>> mapCountryInfoNameByCode; //Map to improve efficiency of this class, so it doesn't need to call the external APIs when we already got results
 
 
     /***********************/
@@ -33,11 +34,11 @@ public class CountryClient {
         return apiUrl;
     }
 
-    protected Map<String, JsonObject> getMapCountryInfoNameByCode() {
+    protected Map<String, Optional<JsonObject>> getMapCountryInfoNameByCode() {
         return mapCountryInfoNameByCode;
     }
 
-    protected void setMapCountryInfoNameByCode(Map<String, JsonObject> mapCountryInfoNameByCode) {
+    protected void setMapCountryInfoNameByCode(Map<String, Optional<JsonObject>> mapCountryInfoNameByCode) {
         this.mapCountryInfoNameByCode = mapCountryInfoNameByCode;
     }
 
@@ -50,7 +51,7 @@ public class CountryClient {
      * Private constructor to avoid client applications to use constructor as we use the singleton design pattern
      */
     private CountryClient(){
-        this.mapCountryInfoNameByCode = new TreeMap<String,JsonObject>();
+        this.mapCountryInfoNameByCode = new ConcurrentHashMap<String,Optional<JsonObject>>();
     }
 
 
@@ -69,7 +70,11 @@ public class CountryClient {
         return instance;
     }
 
-    //Get the country name by its ISO 3166-1 2-letter or 3-letter country code
+    /**
+     * Function that gets the country name by its ISO 3166-1 2-letter or 3-letter country code
+     * @param countryCode
+     * @return country name if code could be resolved or null otherwise
+     */
     public String getCountryNameByCountryCode(String countryCode) {
         String countryName = null;
         JsonObject countryInfo = this.getCountryInfoByCountryCode(countryCode);
@@ -79,20 +84,25 @@ public class CountryClient {
         return countryName;
     }
 
-    //Get the country info by its ISO 3166-1 2-letter or 3-letter country code
+    /**
+     * Function that gets the country info by its ISO 3166-1 2-letter or 3-letter country code
+     * @param countryCode
+     * @return country info if code could be resolved or null otherwise
+     */
     public JsonObject getCountryInfoByCountryCode(String countryCode) {
         JsonObject countryInfo = null;
         if(StringUtils.isNotBlank(countryCode)) {
-            if (!this.getMapCountryInfoNameByCode().containsKey(countryCode)){
+            if (this.getMapCountryInfoNameByCode().containsKey(countryCode)) {
+                countryInfo = this.getMapCountryInfoNameByCode().get(countryCode).orElse(null);
+            }else{
                 try{
                     countryInfo = (JsonObject) NetUtils.doGetRequestJson(this.getApiUrl()+"/alpha/" + StringUtils.trim(countryCode));
                 } catch (Exception e){
                     //There was an error obtaining the country from its country code
                     this.getLogger().error("Error getting the country by countryCode " + countryCode + " using restcountries.eu API");
                 }
-                this.getMapCountryInfoNameByCode().put(countryCode,countryInfo);
+                this.getMapCountryInfoNameByCode().put(countryCode,Optional.ofNullable(countryInfo));
             }
-            countryInfo=this.getMapCountryInfoNameByCode().get(countryCode);
         }
         return countryInfo;
     }

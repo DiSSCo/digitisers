@@ -4,7 +4,7 @@ import com.google.common.io.Files;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
-import eu.dissco.digitisers.tasks.DigitalObjectVisitor;
+import eu.dissco.digitisers.processors.DigitalObjectVisitor;
 import net.dona.doip.client.DigitalObject;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
@@ -16,20 +16,30 @@ import org.gbif.dwc.terms.DcTerm;
 import org.gbif.dwc.terms.DwcTerm;
 import org.gbif.dwc.terms.GbifTerm;
 import org.gbif.dwc.terms.Term;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.stream.Collectors;
 
-public class DwcaReader extends DigitalObjectReader {
+public class DwcaReader{
 
-    /****************/
-    /* CONSTRUCTORS */
-    /****************/
+    /**************/
+    /* ATTRIBUTES */
+    /**************/
 
-    public DwcaReader(DigitalObjectVisitor digitalObjectVisitor){
-        super(digitalObjectVisitor);
+    protected final Logger logger = LoggerFactory.getLogger(this.getClass());
+
+
+    /***********************/
+    /* GETTERS AND SETTERS */
+    /***********************/
+
+    protected Logger getLogger() {
+        return logger;
     }
 
 
@@ -41,11 +51,8 @@ public class DwcaReader extends DigitalObjectReader {
      * Function that parses the information found in the dwca file using the design pattern "visitor"
      * Note: If there is any row that can not be parsed into a digital specimen, the system will report it in the log
      * file but the function will continue to process the following lines.
-     * @return Number of digital specimens parsed from the information found in the dwca file
      */
-    public int readDigitalSpecimensFromDwcaFile(File dwcaFile){
-        int numDsSerialized=0;
-        int numDsProcessed=0;
+    public void readDigitalSpecimensFromDwcaFile(File dwcaFile, DigitalObjectVisitor digitalObjectVisitor){
         try{
             this.getLogger().info("Parsing Dwc-A file " + dwcaFile.toURI() + " into digital specimens ");
 
@@ -60,48 +67,39 @@ public class DwcaReader extends DigitalObjectReader {
                 int rows = 1;
                 //Iterate through the records in the dwc-a
                 for (StarRecord rec : dwcArchive) {
-                    this.getLogger().info("Parsing row " + rows + " (core id " + rec.core().id() + ") ...");
+                    this.getLogger().info("File " + dwcaFile.getName() + " Parsing row " + rows + " (core id " + rec.core().id() + ") ...");
                     try{
                         //Only parse the information from the dwc-a, if the current record is for a specimen
                         //and at least has the minimum data required for a digital specimen
-                        if (checkIfDwcaRecordCanBeParsedAsDigitalSpecimen(rec)){
+                        if (this.checkIfDwcaRecordCanBeParsedAsDigitalSpecimen(rec)){
                             //Read the data of the digital specimen from the dwca record
-                            JsonObject dsContent = getDigitalSpecimenContentFromDwcaRecord(rec);
+                            JsonObject dsContent = this.getDigitalSpecimenContentFromDwcaRecord(rec);
 
                             //Create object for digital specimen
                             DigitalObject ds = new DigitalObject();
                             ds.type = "DigitalSpecimen";
                             ds.setAttribute("content", dsContent);
 
-                            numDsSerialized = numDsSerialized + 1;
-                            this.getLogger().debug("Row " + rows + " (core id " + rec.core().id() + ") has been serialized correctly into a Digital Specimen");
+                            this.getLogger().debug("File " + dwcaFile.getName() + " Row " + rows + " (core id " + rec.core().id() + ") has been serialized correctly into a Digital Specimen");
 
-                            //Call function that use the visitor to process the digital object
-                            DigitalObject dsProcessed = this.processDigitalSpecimen(ds);
-                            if (dsProcessed!=null){
-                                numDsProcessed = numDsProcessed + 1;
-                                this.getLogger().info("Digital specimen for row " + rows + " (core id " + rec.core().id() + ") has been processed correctly");
-                            } else{
-                                this.getLogger().warn("Digital specimen for row " + rows + " (core id " + rec.core().id() + ") has NOT been processed correctly");
-                            }
+                            //Call the visitor to process the digital object
+                            DigitalObject dsSaved = digitalObjectVisitor.visitDigitalSpecimen(ds);
+                            if (dsSaved!=null) this.getLogger().debug("File " + dwcaFile.getName() + " Row " + rows + " (core id " + rec.core().id() + ") has been saved correctly in the repository");
                         } else{
-                            this.getLogger().warn("Row " + rows + " (core id " + rec.core().id() + ") hasn't been serialized into a Digital Specimen" );
+                            this.getLogger().warn("File " + dwcaFile.getName() + " Row " + rows + " (core id " + rec.core().id() + ") hasn't been serialized into a Digital Specimen" );
                         }
                     } catch (Exception e){
-                        this.getLogger().error("Unexpected error parsing row " + rows,e);
+                        this.getLogger().error("File " + dwcaFile.getName() + " Unexpected error parsing row " + rows,e);
                     }
                     rows++;
                 }
-                this.getLogger().info("Dwc-A file " + dwcaFile.toURI() + " parsed. Result: " + (rows-1) + " row(s) were found in " +
-                        "the core file. " + numDsSerialized + " of those rows were serialized as Digital Specimens and " +
-                        numDsProcessed + " of those Digital Speciemens were processed correctly.");
+                this.getLogger().info("Dwc-A file " + dwcaFile.toURI() + " parsed. Result: " + (rows-1) + " row(s) were found in the core file.");
             } else{
-                this.getLogger().error("Only dwca files that its core file is Occurrences can be processed into digital specimens");
+                this.getLogger().error("File " + dwcaFile.getName() + " Only dwca files that its core file is Occurrences can be processed into digital specimens");
             }
         }catch (Exception e){
             this.getLogger().error("Unexpected error parsing dwca-file to digital specimens " + dwcaFile.toURI(),e);
         }
-        return numDsSerialized;
     }
 
 
@@ -109,6 +107,12 @@ public class DwcaReader extends DigitalObjectReader {
     /* PRIVATE METHODS */
     /*******************/
 
+    /**
+     * Function that check if the record in the darwin core file can be parsed into a Digital specimen by checking if
+     * it has at least the minimum fields requiered
+     * @param rec Record in the darwin core file to check if it can be parsed into a Digital specimen
+     * @return true if darwin core record can be parsed, false otherwise
+     */
     private boolean checkIfDwcaRecordCanBeParsedAsDigitalSpecimen(StarRecord rec){
         //Check if the dwca record is for a specimen (living, preserved or fossil) and it has enough information to populate a Digital Specimen object
         String basisOfRecord=this.getValueFromDwcaRecord(rec,DwcTerm.basisOfRecord);
@@ -122,7 +126,7 @@ public class DwcaReader extends DigitalObjectReader {
 
         if (!canDwcaRecordBeParsedAsDigitalSpecimen){
             StringBuilder sb = new StringBuilder();
-            sb.append("Darwin core record can not be parsed as DS because: ");
+            sb.append("Darwin core record (coreID="+rec.core().id() + ") can not be parsed as DS because: ");
             if (!StringUtils.containsIgnoreCase(basisOfRecord,"specimen")) sb.append(" basisOfRecord is not for a specimen");
             if (StringUtils.isBlank(scientificName)) sb.append(" scientificName is blank or can't be found");
             if (StringUtils.isBlank(institutionCode)) sb.append(" institutionCode is blank or can't be found");
@@ -133,50 +137,55 @@ public class DwcaReader extends DigitalObjectReader {
         return canDwcaRecordBeParsedAsDigitalSpecimen;
     }
 
+    /**
+     * Read data from the darwin core record and saved in a jsonObject that will be the content of the digital specimen
+     * @param rec Darwin core record
+     * @return jsonObject with information obtained from the darwin core record
+     */
     private JsonObject getDigitalSpecimenContentFromDwcaRecord(StarRecord rec){
         JsonObject dsContent = new JsonObject();
 
         //physicalSpecimenId
-        addPropertyToJsonObject(dsContent,"physicalSpecimenId", this.getPhysicalSpecimenId(rec,false));
+        this.addPropertyToJsonObject(dsContent,"physicalSpecimenId", this.getPhysicalSpecimenId(rec,false));
 
         //scientific name.
-        addPropertyToJsonObject(dsContent,"scientificName",this.getValueFromDwcaRecord(rec, GbifTerm.acceptedScientificName));
+        this.addPropertyToJsonObject(dsContent,"scientificName",this.getValueFromDwcaRecord(rec, GbifTerm.acceptedScientificName));
 
         //catalogNumber
-        addPropertyToJsonObject(dsContent,"catalogNumber",this.getValueFromDwcaRecord(rec,DwcTerm.catalogNumber));
+        this.addPropertyToJsonObject(dsContent,"catalogNumber",this.getValueFromDwcaRecord(rec,DwcTerm.catalogNumber));
 
         //otherCatalogNumbers
-        addPropertyToJsonObject(dsContent,"otherCatalogNumbers",this.getValueFromDwcaRecord(rec,DwcTerm.otherCatalogNumbers));
+        this.addPropertyToJsonObject(dsContent,"otherCatalogNumbers",this.getValueFromDwcaRecord(rec,DwcTerm.otherCatalogNumbers));
 
         //institutionCode
-        addPropertyToJsonObject(dsContent,"institutionCode",this.getValueFromDwcaRecord(rec,DwcTerm.institutionCode));
+        this.addPropertyToJsonObject(dsContent,"institutionCode",this.getValueFromDwcaRecord(rec,DwcTerm.institutionCode));
 
         //collectionCode
-        addPropertyToJsonObject(dsContent,"collectionCode",this.getValueFromDwcaRecord(rec,DwcTerm.collectionCode));
+        this.addPropertyToJsonObject(dsContent,"collectionCode",this.getValueFromDwcaRecord(rec,DwcTerm.collectionCode));
 
         //recordedBy
-        addPropertyToJsonObject(dsContent,"recordedBy",this.getValueFromDwcaRecord(rec,DwcTerm.recordedBy));
+        this.addPropertyToJsonObject(dsContent,"recordedBy",this.getValueFromDwcaRecord(rec,DwcTerm.recordedBy));
 
         //gbifId
         String gbifPrefix="";
         if (rec.core().rowType().prefixedName().equalsIgnoreCase("dwc:Occurrence")){
             gbifPrefix="https://www.gbif.org/occurrence/";
         }
-        addPropertyToJsonObject(dsContent,"gbifId",gbifPrefix+getValueFromDwcaRecord(rec,GbifTerm.gbifID));
+        this.addPropertyToJsonObject(dsContent,"gbifId",gbifPrefix+this.getValueFromDwcaRecord(rec,GbifTerm.gbifID));
 
         //author reference
-        addPropertyToJsonObject(dsContent,"authorReference",this.getValueFromDwcaRecord(rec, DwcTerm.scientificNameAuthorship));
+        this.addPropertyToJsonObject(dsContent,"authorReference",this.getValueFromDwcaRecord(rec, DwcTerm.scientificNameAuthorship));
 
         //country code
-        String countryCode = getValueFromDwcaRecord(rec,DwcTerm.countryCode);
-        addPropertyToJsonObject(dsContent,"countryCode",countryCode);
+        String countryCode = this.getValueFromDwcaRecord(rec,DwcTerm.countryCode);
+        this.addPropertyToJsonObject(dsContent,"countryCode",countryCode);
 
         //locality
-        addPropertyToJsonObject(dsContent,"locality",this.getValueFromDwcaRecord(rec,DwcTerm.locality));
+        this.addPropertyToJsonObject(dsContent,"locality",this.getValueFromDwcaRecord(rec,DwcTerm.locality));
 
         //latitude and longitude
-        String latitude = getValueFromDwcaRecord(rec,DwcTerm.decimalLatitude);
-        String longitude = getValueFromDwcaRecord(rec,DwcTerm.decimalLongitude);
+        String latitude = this.getValueFromDwcaRecord(rec,DwcTerm.decimalLatitude);
+        String longitude = this.getValueFromDwcaRecord(rec,DwcTerm.decimalLongitude);
         if (NumberUtils.isCreatable(latitude) && NumberUtils.isCreatable(longitude)){
             JsonArray coordinates = new JsonArray();
             coordinates.add(Double.parseDouble(latitude));
@@ -184,17 +193,16 @@ public class DwcaReader extends DigitalObjectReader {
             dsContent.add("decimalLatLon",coordinates);
         }
 
-        //Collection date. TODO: Is the eventDate field?
-        addPropertyToJsonObject(dsContent,"collectionDate",this.getValueFromDwcaRecord(rec, DwcTerm.eventDate));
+        this.addPropertyToJsonObject(dsContent,"collectionDate",this.getValueFromDwcaRecord(rec, DwcTerm.eventDate));
 
-        //commonName TODO: what to do if dwc-a has extension vernacular names. Should it be an array in the schema?
-        addPropertyToJsonObject(dsContent,"commonName",this.getValueFromDwcaRecord(rec,DwcTerm.vernacularName));
+        //commonName
+        this.addPropertyToJsonObject(dsContent,"commonName",this.getValueFromDwcaRecord(rec,DwcTerm.vernacularName));
 
-        //literatureReference TODO: is the identificationReferences field or is it references? In the schema, should it be an array?
-        addPropertyToJsonObject(dsContent,"literatureReference",this.getValueFromDwcaRecord(rec,DwcTerm.identificationReferences));
+        //literatureReference
+        this.addPropertyToJsonObject(dsContent,"literatureReference",this.getValueFromDwcaRecord(rec,DwcTerm.identificationReferences));
 
-        //comment. TODO: is it field fieldNotes
-        addPropertyToJsonObject(dsContent,"comment",this.getValueFromDwcaRecord(rec,DwcTerm.fieldNotes));
+        //comment
+        this.addPropertyToJsonObject(dsContent,"comment",this.getValueFromDwcaRecord(rec,DwcTerm.fieldNotes));
 
         //availableImages from multimedia extension?
         if(rec.hasExtension(GbifTerm.Multimedia)){
@@ -226,7 +234,7 @@ public class DwcaReader extends DigitalObjectReader {
             }
         }
 
-        //TODO: From where to get the following fields
+        //TODO: From where to get the following fields. Also review existing ones
         //stableIdentifier
         //interpretations. Should it be an array in the DS schema?
         //annotations. Is it the field "fieldNotes"? Should it be an array in the DS schema?
@@ -235,21 +243,27 @@ public class DwcaReader extends DigitalObjectReader {
         //bhlPages
         //imageID. Why do we have imageID and availableImages
 
-        //TODO: do we want to add extra data in the dwca?
         JsonObject darwinCoreRecordJsonObj = this.getDarwinCoreRecordAsJsonObject(rec);
         dsContent.add("dwcaContent", darwinCoreRecordJsonObj);
         
         return dsContent;
     }
 
-
+    /**
+     * Function that gets the PhysicalSpecimenId to be used for the darwin core record.
+     * It tries to read it firstly from identifier, if empty, then look occurrenceID, then catalogNumber,
+     * after that otherCatalogNumbers and finally if all the previous ones are empty it tries gbifID
+     * @param rec
+     * @param logResults
+     * @return
+     */
     private String getPhysicalSpecimenId(StarRecord rec, boolean logResults){
         String physicalSpecimenId=null;
-        String identifier = getValueFromDwcaRecord(rec,DcTerm.identifier);
-        String occurrenceID = getValueFromDwcaRecord(rec,DwcTerm.occurrenceID);
-        String catalogNumber = getValueFromDwcaRecord(rec,DwcTerm.catalogNumber);
-        String otherCatalogNumbers = getValueFromDwcaRecord(rec,DwcTerm.otherCatalogNumbers);
-        String gbifID = getValueFromDwcaRecord(rec,GbifTerm.gbifID);
+        String identifier = this.getValueFromDwcaRecord(rec,DcTerm.identifier);
+        String occurrenceID = this.getValueFromDwcaRecord(rec,DwcTerm.occurrenceID);
+        String catalogNumber = this.getValueFromDwcaRecord(rec,DwcTerm.catalogNumber);
+        String otherCatalogNumbers = this.getValueFromDwcaRecord(rec,DwcTerm.otherCatalogNumbers);
+        String gbifID = this.getValueFromDwcaRecord(rec,GbifTerm.gbifID);
 
         String source=null;
         if (StringUtils.isNotBlank(identifier)){
@@ -268,12 +282,17 @@ public class DwcaReader extends DigitalObjectReader {
             physicalSpecimenId=gbifID;
             source="gbifID";
         } else{
-            this.getLogger().warn("PhysicalSpecimenId can not be obtained for this record");
+            this.getLogger().warn("PhysicalSpecimenId can not be obtained for this record (coreID="+rec.core().id() + ")");
         }
-        if (source!=null && logResults) this.getLogger().info("PhysicalSpecimenId obtained from '"+ source + "'");
+        if (source!=null && logResults) this.getLogger().info("PhysicalSpecimenId obtained from '"+ source + "' for record (coreID="+rec.core().id() + ")");
         return physicalSpecimenId;
     }
 
+    /**
+     * Function that serialize the darwin core record into a Json Object
+     * @param rec Darwin core record to be serialized into a json object
+     * @return Json object resulting of the serialization of the darwin core record
+     */
     private JsonObject getDarwinCoreRecordAsJsonObject(StarRecord rec){
         JsonObject recContentJsonObj = new JsonObject();
 
@@ -283,7 +302,7 @@ public class DwcaReader extends DigitalObjectReader {
         JsonObject coreContentJsonObj = new JsonObject();
         Set<Term> terms = rec.core().terms();
         for (Term term:terms) {
-            addPropertyToJsonObject(coreContentJsonObj,term.prefixedName(),rec.core().value(term));
+            this.addPropertyToJsonObject(coreContentJsonObj,term.prefixedName(),rec.core().value(term));
         }
         coreJsonObj.add("content",coreContentJsonObj);
         recContentJsonObj.add("core",coreJsonObj);
@@ -298,7 +317,7 @@ public class DwcaReader extends DigitalObjectReader {
                 JsonObject extensionContentJsonObj = new JsonObject();
                 Set<Term> extensionTerms = extensionRecord.terms();
                 for (Term extensionTerm:extensionTerms) {
-                    addPropertyToJsonObject(extensionContentJsonObj,extensionTerm.prefixedName(),extensionRecord.value(extensionTerm));
+                    this.addPropertyToJsonObject(extensionContentJsonObj,extensionTerm.prefixedName(),extensionRecord.value(extensionTerm));
                 }
                 extensionContentJsonArr.add(extensionContentJsonObj);
             }
@@ -317,6 +336,15 @@ public class DwcaReader extends DigitalObjectReader {
         return recContentJsonObj;
     }
 
+    /**
+     * Function that gets the value of a term in the darwin core record.
+     * It first try to find it in the core file, if it doesn't exist or if its empty,
+     * it tries to get the value from the verbatim file.
+     * @param rec Darwin core record to obtain the value of one of its properties
+     * @param term Term from which we want to obtain its value
+     * @return Value, as string, of the term in the darwin core record, when the term is found and it is not empty, or
+     * it returns null otherwise
+     */
     private String getValueFromDwcaRecord(StarRecord rec, Term term){
         String valueInDwca=null;
         String valueInCore = rec.core().value(term);
@@ -333,17 +361,23 @@ public class DwcaReader extends DigitalObjectReader {
             source = "core: " + rec.core().rowType().prefixedName();
         }
 
-        if (StringUtils.isNotBlank(valueInDwca)) this.getLogger().debug(term.prefixedName() + " read from " + source);
+        if (StringUtils.isNotBlank(valueInDwca)) this.getLogger().debug(term.prefixedName() + " read from " + source + " for this record (coreID="+rec.core().id() + ")");
 
         return valueInDwca;
     }
 
+    /**
+     * Function to ad a property to a json object.
+     * It will be added if the value is not empty or null
+     * @param dsContent Json object on which to add the property
+     * @param property name of the property to be added
+     * @param value value of the property to be added
+     */
     private void addPropertyToJsonObject(JsonObject dsContent,String property, String value){
         if(StringUtils.isNotBlank(value)){
             //Only add to the json object properties that their values are not empty
             dsContent.addProperty(property,value);
         }
     }
-
 
 }

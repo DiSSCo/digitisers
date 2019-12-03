@@ -21,7 +21,6 @@ public class NetUtilsTest {
 
         String countryName = countryResponse.getCountry().getName();
         String continentName = countryResponse.getContinent().getName();
-        System.out.println(countryName + " - " + continentName);
 
         assertEquals("The country name should be ","United Kingdom",countryName);
     }

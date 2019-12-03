@@ -1,9 +1,9 @@
 package eu.dissco.digitisers.clients.digitalObjectRepository;
 
 import com.google.common.collect.MapDifference;
-import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import eu.dissco.digitisers.utils.DigitalSpecimenUtils;
 import eu.dissco.digitisers.utils.JsonUtils;
 import net.cnri.cordra.api.CordraClient;
 import net.cnri.cordra.api.CordraException;
@@ -21,12 +21,24 @@ import org.slf4j.LoggerFactory;
 import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class DigitalObjectRepositoryClient implements AutoCloseable {
+
+    /**************/
+    /* ENUM TYPES */
+    /**************/
+
+    public enum DIGITAL_OBJECT_OPERATION {
+        INSERT,
+        UPDATE,
+        DELETE
+    }
 
     /**************/
     /* ATTRIBUTES */
@@ -39,18 +51,7 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
     private final CordraClient restClient;
     private final AuthenticationInfo authInfo;
     private final ServiceInfo serviceInfo;
-    private Map<String,DigitalObject> mapSchemasRepository; //For efficiency, keep in memory schemas obtained by broker
-
-
-    /**************/
-    /* ENUM TYPES */
-    /**************/
-
-    public enum DIGITAL_OBJECT_OPERATION {
-        INSERT,
-        UPDATE,
-        DELETE
-    }
+    private static Map<String,Optional<DigitalObject>> mapDigitalObjectSchemas = new ConcurrentHashMap<String,Optional<DigitalObject>>(); //For efficiency, keep in memory schemas obtained by broker
 
 
     /***********************/
@@ -77,12 +78,12 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
         return serviceInfo;
     }
 
-    public Map<String, DigitalObject> getMapSchemasRepository() {
-        return mapSchemasRepository;
+    public Map<String, Optional<DigitalObject>> getMapDigitalObjectSchemas() {
+        return mapDigitalObjectSchemas;
     }
 
-    public void setMapSchemasRepository(Map<String, DigitalObject> mapSchemasRepository) {
-        this.mapSchemasRepository = mapSchemasRepository;
+    public void setMapSchemasRepository(Map<String, Optional<DigitalObject>> mapDObjSchemas) {
+        mapDigitalObjectSchemas = mapDObjSchemas;
     }
 
     protected CordraClient getRestClient() {
@@ -95,17 +96,16 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
     /****************/
 
     /**
-     *  private constructor to avoid client applications to use constructor as we use the singleton design pattern
+     *  Create a new DigitalObjectRepositoryClient
      * @param digitalObjectRepositoryInfo
      * @throws DigitalObjectRepositoryException
      */
-    private DigitalObjectRepositoryClient(DigitalObjectRepositoryInfo digitalObjectRepositoryInfo) throws DigitalObjectRepositoryException {
+    public DigitalObjectRepositoryClient(DigitalObjectRepositoryInfo digitalObjectRepositoryInfo) throws DigitalObjectRepositoryException {
         try{
             this.digitalObjectRepositoryInfo=digitalObjectRepositoryInfo;
             this.doipClient=new DoipClient();
             this.authInfo= new PasswordAuthenticationInfo(digitalObjectRepositoryInfo.getUsername(), digitalObjectRepositoryInfo.getPassword());
             this.serviceInfo = new ServiceInfo(digitalObjectRepositoryInfo.getServiceId(), digitalObjectRepositoryInfo.getHostAddress(), digitalObjectRepositoryInfo.getDoipPort());
-            this.mapSchemasRepository=new TreeMap<String,DigitalObject>();
             this.restClient = new HttpCordraClient(digitalObjectRepositoryInfo.getUrl(),digitalObjectRepositoryInfo.getUsername(),digitalObjectRepositoryInfo.getPassword());
         } catch (Exception e){
             throw new DigitalObjectRepositoryException("Error setting up DigitalObjectRepositoryClient " + e.getMessage(),e);
@@ -117,19 +117,6 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
     /*******************/
     /* PUBLIC METHODS */
     /******************/
-
-    /**
-     * Method to get an instance of DigitalObjectRepositoryClient as we use the singleton design pattern
-     * @param digitalObjectRepositoryInfo
-     * @return
-     * @throws DigitalObjectRepositoryException
-     */
-    public static DigitalObjectRepositoryClient getInstance(DigitalObjectRepositoryInfo digitalObjectRepositoryInfo) throws DigitalObjectRepositoryException {
-        if (instance==null){
-            instance = new DigitalObjectRepositoryClient(digitalObjectRepositoryInfo);
-        }
-        return instance;
-    }
 
     /***
      * Function that returns all the schemas in the repository
@@ -188,8 +175,8 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
      */
     public DigitalObject getSchemaByName(String name) throws DigitalObjectRepositoryException {
         DigitalObject schema = null;
-        if (this.getMapSchemasRepository().containsKey(name)){
-            schema = this.getMapSchemasRepository().get(name);
+        if (this.getMapDigitalObjectSchemas().containsKey(name)){
+            schema = this.getMapDigitalObjectSchemas().get(name).orElse(null);
         } else{
             String query = "type:Schema AND /name:" + escapeQueryParamValue(name);
             List<DigitalObject> searchResults = this.searchAll(query);
@@ -198,7 +185,7 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
             } else{
                 schema = null;
             }
-            this.getMapSchemasRepository().put(name,schema);
+            this.getMapDigitalObjectSchemas().put(name,Optional.ofNullable(schema));
         }
         return schema;
     }
@@ -271,7 +258,7 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
      * @throws DigitalObjectRepositoryException
      */
     public List<DigitalObject> getDigitalSpecimensCreatedBy(String username) throws DigitalObjectRepositoryException{
-        return this.getDigitalSpecimensWorkedBy(username,"createdBy");
+        return this.getDigitalSpecimensByUserTypeProperty("metadata/createdBy",username);
     }
 
     /**
@@ -281,19 +268,18 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
      * @throws DigitalObjectRepositoryException
      */
     public List<DigitalObject> getDigitalSpecimensModifiedBy(String username) throws DigitalObjectRepositoryException{
-        return this.getDigitalSpecimensWorkedBy(username,"modifiedBy");
+        return this.getDigitalSpecimensByUserTypeProperty("metadata/modifiedBy",username);
     }
 
     /***
      * Return all digital specimens created between the period range defined in the parameters
      * @param startDatetime start of the search period
      * @param endDatetime end of the search period
-     * @param zoneId timezone id used in the start and date time
      * @return List of all digital specimens created in the period range defined in the parameters
      * @throws DigitalObjectRepositoryException
      */
-    public List<DigitalObject> getDigitalSpecimensCreatedBetweenDateRange(LocalDateTime startDatetime, LocalDateTime endDatetime, ZoneId zoneId) throws DigitalObjectRepositoryException {
-        String query = getQueryDigitalSpecimensPropertyDateRange("metadata/createdOn",startDatetime,endDatetime,zoneId);
+    public List<DigitalObject> getDigitalSpecimensCreatedBetweenDateRange(ZonedDateTime startDatetime, ZonedDateTime endDatetime) throws DigitalObjectRepositoryException {
+        String query = getQueryDigitalSpecimensByDateTypeProperty("metadata/createdOn",startDatetime,endDatetime);
         return this.searchAll(query);
     }
 
@@ -304,31 +290,29 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
      * @throws DigitalObjectRepositoryException
      */
     public List<DigitalObject> getDigitalSpecimensCreatedRecently(Integer days) throws DigitalObjectRepositoryException {
-        String query = getQueryDigitalSpecimensPropertyDateRecently("metadata/createdOn",days);
+        String query = getQueryDigitalSpecimensByDateTypeProperty("metadata/createdOn",days);
         return this.searchAll(query);
     }
 
     /***
      * Function that returns all the digital specimens created since the given date
      * @param startDatetime
-     * @param zoneId
      * @return List of all the digital specimens created since the given date
      * @throws DigitalObjectRepositoryException
      */
-    public List<DigitalObject> getDigitalSpecimensCreatedSince(LocalDateTime startDatetime,ZoneId zoneId) throws DigitalObjectRepositoryException {
-        String query = getQueryDigitalSpecimensPropertyDateRange("metadata/createdOn",startDatetime,null,zoneId);
+    public List<DigitalObject> getDigitalSpecimensCreatedSince(ZonedDateTime startDatetime) throws DigitalObjectRepositoryException {
+        String query = getQueryDigitalSpecimensByDateTypeProperty("metadata/createdOn",startDatetime,null);
         return this.searchAll(query);
     }
 
     /***
      * Function that returns all the digital specimens created until the given date
      * @param endDatetime
-     * @param zoneId
-     * @return
+     * @return List of all the digital specimens created upto the given date
      * @throws DigitalObjectRepositoryException
      */
-    public List<DigitalObject> getDigitalSpecimensCreatedUntil(LocalDateTime endDatetime,ZoneId zoneId) throws DigitalObjectRepositoryException {
-        String query = getQueryDigitalSpecimensPropertyDateRange("metadata/createdOn",null,endDatetime,zoneId);
+    public List<DigitalObject> getDigitalSpecimensCreatedUntil(ZonedDateTime endDatetime) throws DigitalObjectRepositoryException {
+        String query = getQueryDigitalSpecimensByDateTypeProperty("metadata/createdOn",null,endDatetime);
         return this.searchAll(query);
     }
 
@@ -336,12 +320,11 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
      * Return all digital specimens modified between the period range defined in the parameters
      * @param startDatetime start of the search period
      * @param endDatetime end of the search period
-     * @param zoneId timezone id used in the start and date time
      * @return List of all digital specimens modified in the period range defined in the parameters
      * @throws DigitalObjectRepositoryException
      */
-    public List<DigitalObject> getDigitalSpecimensModifiedBetweenDateRange(LocalDateTime startDatetime, LocalDateTime endDatetime, ZoneId zoneId) throws DigitalObjectRepositoryException {
-        String query = getQueryDigitalSpecimensPropertyDateRange("metadata/modifiedOn",startDatetime,endDatetime,zoneId);
+    public List<DigitalObject> getDigitalSpecimensModifiedBetweenDateRange(ZonedDateTime startDatetime, ZonedDateTime endDatetime) throws DigitalObjectRepositoryException {
+        String query = getQueryDigitalSpecimensByDateTypeProperty("metadata/modifiedOn",startDatetime,endDatetime);
         return this.searchAll(query);
     }
 
@@ -352,31 +335,29 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
      * @throws DigitalObjectRepositoryException
      */
     public List<DigitalObject> getDigitalSpecimensModifiedRecently(Integer days) throws DigitalObjectRepositoryException {
-        String query = getQueryDigitalSpecimensPropertyDateRecently("metadata/modifiedOn",days);
+        String query = getQueryDigitalSpecimensByDateTypeProperty("metadata/modifiedOn",days);
         return this.searchAll(query);
     }
 
     /***
      * Function that returns all the digital specimens modified since the given date
      * @param startDatetime
-     * @param zoneId
      * @return List of all the digital specimens modified since the given date
      * @throws DigitalObjectRepositoryException
      */
-    public List<DigitalObject> getDigitalSpecimensModifiedSince(LocalDateTime startDatetime,ZoneId zoneId) throws DigitalObjectRepositoryException {
-        String query = getQueryDigitalSpecimensPropertyDateRange("metadata/modifiedOn",startDatetime,null,zoneId);
+    public List<DigitalObject> getDigitalSpecimensModifiedSince(ZonedDateTime startDatetime) throws DigitalObjectRepositoryException {
+        String query = getQueryDigitalSpecimensByDateTypeProperty("metadata/modifiedOn",startDatetime,null);
         return this.searchAll(query);
     }
 
     /***
      * Function that returns all the digital specimens modified until the given date
      * @param endDatetime
-     * @param zoneId
      * @return List of all the digital specimens modified until the given date
      * @throws DigitalObjectRepositoryException
      */
-    public List<DigitalObject> getDigitalSpecimensModifiedUntil(LocalDateTime endDatetime,ZoneId zoneId) throws DigitalObjectRepositoryException {
-        String query = getQueryDigitalSpecimensPropertyDateRange("metadata/modifiedOn",null,endDatetime,zoneId);
+    public List<DigitalObject> getDigitalSpecimensModifiedUntil(ZonedDateTime endDatetime) throws DigitalObjectRepositoryException {
+        String query = getQueryDigitalSpecimensByDateTypeProperty("metadata/modifiedOn",null,endDatetime);
         return this.searchAll(query);
     }
 
@@ -421,16 +402,17 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
      * @throws DigitalObjectRepositoryException
      */
     public DigitalObject saveDigitalSpecimen(DigitalObject ds) throws DigitalObjectRepositoryException {
-        String institutionCode=ds.attributes.getAsJsonObject("content").get("institutionCode").getAsString();
-        String physicalSpecimenId=ds.attributes.getAsJsonObject("content").get("physicalSpecimenId").getAsString();
-        String scientificName=ds.attributes.getAsJsonObject("content").get("scientificName").getAsString();
+        String institutionCode= DigitalSpecimenUtils.getStringPropertyFromDS(ds,"institutionCode");
+        String physicalSpecimenId=DigitalSpecimenUtils.getStringPropertyFromDS(ds,"physicalSpecimenId");
+        String scientificName=DigitalSpecimenUtils.getStringPropertyFromDS(ds,"scientificName");
 
         //Check if the digital specimen exist in the repository
         DigitalObject dsInRepository = this.getDigitalSpecimen(scientificName,institutionCode,physicalSpecimenId);
 
         //Check if the digital specimen is valid according to the latest schema before sending it to the repository
         if (!this.validateDigitalSpecimenAgainstSchema(ds,false)){
-            throw new DigitalObjectRepositoryException("Warn","Digital specimen [" + institutionCode + " || "+ physicalSpecimenId + "] is not valid according to the schema");
+            throw new DigitalObjectRepositoryException("Warn","Digital specimen [" + scientificName + " || " + institutionCode
+                    + " || "+ physicalSpecimenId + "] is not valid according to the schema");
         }
 
         DigitalObject dsSaved=null;
@@ -439,10 +421,11 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
             dsSaved = this.create(ds);
             dsSaved.attributes.addProperty("operation", DIGITAL_OBJECT_OPERATION.INSERT.name());
         } else{
-            //The ds exists in repository => compare their contents and if there are differences => update ds
+            //The ds exists in repository => compare its contents with the one in the repository and if there are differences => update ds
             if (this.haveDigitalSpecimensGotSameContent(ds,dsInRepository)){
-                throw new DigitalObjectRepositoryException("Warn","Content for digital specimen [" + institutionCode + " || "+ physicalSpecimenId + "] is identical " +
-                        "to the content for digital specimen found in the repository " + dsInRepository.id + ". No operation will be performed");
+                throw new DigitalObjectRepositoryException("Warn","Content for digital specimen [" + scientificName
+                        + " || " + institutionCode + " || "+ physicalSpecimenId + "] is identical to the content " +
+                        "for digital specimen found in the repository " + dsInRepository.id + ". No operation will be performed");
             } else{
                 dsInRepository.attributes.remove("content");
                 dsInRepository.attributes.add("content",ds.attributes.getAsJsonObject("content"));
@@ -470,9 +453,9 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
      * @throws DigitalObjectRepositoryException
      */
     public DigitalObject createDigitalSpecimen(DigitalObject ds) throws DigitalObjectRepositoryException {
-        String institutionCode=ds.attributes.getAsJsonObject("content").get("institutionCode").getAsString();
-        String physicalSpecimenId=ds.attributes.getAsJsonObject("content").get("physicalSpecimenId").getAsString();
-        String scientificName=ds.attributes.getAsJsonObject("content").get("scientificName").getAsString();
+        String institutionCode=DigitalSpecimenUtils.getStringPropertyFromDS(ds,"institutionCode");
+        String physicalSpecimenId=DigitalSpecimenUtils.getStringPropertyFromDS(ds,"physicalSpecimenId");
+        String scientificName=DigitalSpecimenUtils.getStringPropertyFromDS(ds,"scientificName");
 
         //Check if the digital specimen doesn't exist yet in the repository
         DigitalObject dsInRepository = this.getDigitalSpecimen(scientificName,institutionCode,physicalSpecimenId);
@@ -500,9 +483,9 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
      * @throws DigitalObjectRepositoryException
      */
     public DigitalObject updateDigitalSpecimen(DigitalObject ds) throws DigitalObjectRepositoryException {
-        String institutionCode=ds.attributes.getAsJsonObject("content").get("institutionCode").getAsString();
-        String physicalSpecimenId=ds.attributes.getAsJsonObject("content").get("physicalSpecimenId").getAsString();
-        String scientificName=ds.attributes.getAsJsonObject("content").get("scientificName").getAsString();
+        String institutionCode=DigitalSpecimenUtils.getStringPropertyFromDS(ds,"institutionCode");
+        String physicalSpecimenId=DigitalSpecimenUtils.getStringPropertyFromDS(ds,"physicalSpecimenId");
+        String scientificName=DigitalSpecimenUtils.getStringPropertyFromDS(ds,"scientificName");
 
         //Get digital specimen already stored in repository
         DigitalObject dsInRepository = this.getDigitalSpecimen(scientificName,institutionCode,physicalSpecimenId);
@@ -572,14 +555,13 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
             if (versions!=null && versions.size()>0){
                 listDigitalObjects = new ArrayList<>();
                 DigitalObject previousVersion = null;
-                Gson gson = new Gson();
                 for (VersionInfo version:versions) {
                     DigitalObject digitalObject = this.retrieve(version.id);
                     MapDifference<String, Object> comparisonResult = null;
                     if (previousVersion!=null){
                         comparisonResult = this.compareContentDigitalObjects(previousVersion,digitalObject);
                     }
-                    digitalObject.attributes.add("comparisonAgainstPreviousVersion",gson.toJsonTree(comparisonResult));
+                    digitalObject.attributes.add("comparisonAgainstPreviousVersion",JsonUtils.convertObjectToJsonElement(comparisonResult));
                     previousVersion=digitalObject;
                     listDigitalObjects.add(digitalObject);
                 }
@@ -595,21 +577,33 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
      * Function that get the object as it was the the time specified
      * Note: This function use the CORDRA REST API as this functionality is not provided in DOIP yet
      * @param objectId
+     * @param zonedDateTime datetime from when we want to retrieve the status of the digital object
      * @return List of versions (digital objects) of a given object
      * @throws DigitalObjectRepositoryException
      */
-    public DigitalObject getVersionOfObjectAtGivenTime(String objectId, LocalDateTime datetime, ZoneId zoneId) throws DigitalObjectRepositoryException{
+    public DigitalObject getVersionOfObjectAtGivenTime(String objectId, ZonedDateTime zonedDateTime) throws DigitalObjectRepositoryException{
+        if (zonedDateTime==null){
+            zonedDateTime = LocalDateTime.now().atZone(ZoneId.systemDefault());
+        }
+        Long datetimeEpoch = zonedDateTime.toInstant().toEpochMilli();
+        return this.getVersionOfObjectAtGivenTime(objectId,datetimeEpoch);
+    }
+
+
+    /***
+     * Function that get the object as it was the the time specified
+     * Note: This function use the CORDRA REST API as this functionality is not provided in DOIP yet
+     * @param objectId
+     * @param datetimeEpoch datetime from when we want to retrieve the status of the digital object
+     * @return List of versions (digital objects) of a given object
+     * @throws DigitalObjectRepositoryException
+     */
+    public DigitalObject getVersionOfObjectAtGivenTime(String objectId, Long datetimeEpoch) throws DigitalObjectRepositoryException{
         try {
             DigitalObject digitalObjectAtGivenTime = null;
             List<VersionInfo> versions = this.getRestClient().getVersionsFor(objectId);
 
             if (versions!=null && versions.size()>0){
-                if (datetime==null){
-                    datetime = LocalDateTime.now();
-                    zoneId = ZoneId.systemDefault();
-                }
-                Long datetimeEpoch = datetime.atZone(zoneId).toInstant().toEpochMilli();
-
                 //The list of versions is sorted from the oldest to the most recent
                 int versionPos=-1;
                 for (VersionInfo version:versions) {
@@ -633,13 +627,13 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
 
                 if (digitalObjectAtGivenTime!=null){
                     //Calculate differences with current version
-                    MapDifference<String, Object> comparisonResult = null;
                     if (!digitalObjectAtGivenTime.id.equalsIgnoreCase(objectId)){
                         DigitalObject currentObject = this.retrieve(objectId);
-                        comparisonResult = this.compareContentDigitalObjects(digitalObjectAtGivenTime,currentObject);
+                        MapDifference<String, Object> mapDifference =  this.compareContentDigitalObjects(digitalObjectAtGivenTime,currentObject);
+                        JsonObject comparisonResult = (JsonObject)JsonUtils.convertObjectToJsonElement(mapDifference);
+                        comparisonResult.remove("onBoth");
+                        digitalObjectAtGivenTime.attributes.add("comparisonAgainstCurrentVersion",JsonUtils.convertObjectToJsonElement(comparisonResult));
                     }
-                    Gson gson = new Gson();
-                    digitalObjectAtGivenTime.attributes.add("comparisonAgainstCurrentVersion",gson.toJsonTree(comparisonResult));
                 }
             }
             return digitalObjectAtGivenTime;
@@ -666,7 +660,16 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
         }
     }
 
-    private List<DigitalObject> searchAll(String query,Integer pageNumber,Integer pageSize) throws DigitalObjectRepositoryException{
+    /**
+     * Function that get all entries that match the query. It using recursion to iterate through all the pages
+     * returned by the Digital Object repository
+     * @param query query to do the search
+     * @param pageNumber page to get it
+     * @param pageSize number of element to get per page
+     * @return All digital objects in the repository entries that match the query
+     * @throws DigitalObjectRepositoryException
+     */
+    private List<DigitalObject> searchAll(String query, Integer pageNumber, Integer pageSize) throws DigitalObjectRepositoryException{
         List<DigitalObject> results = new ArrayList<DigitalObject>();
         QueryParams queryParams = new QueryParams(pageNumber, pageSize);
         String digitalObjectRepositoryServiceId = this.getDigitalObjectRepositoryInfo().getServiceId();
@@ -678,7 +681,15 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
         return results;
     }
 
-    private List<DigitalObject> getDigitalSpecimensWorkedBy(String username, String propertyName) throws DigitalObjectRepositoryException{
+    /**
+     * Get all the digital specimens that its userTypePropertyName passed as parameter (eg: metadata/createdBy)
+     * correspond to the user name
+     * @param userTypePropertyName metadataPropertyName (createdBy, modifiedBy)
+     * @param username username
+     * @return List of digital specimens that match the search criteria
+     * @throws DigitalObjectRepositoryException
+     */
+    private List<DigitalObject> getDigitalSpecimensByUserTypeProperty(String userTypePropertyName, String username) throws DigitalObjectRepositoryException{
         List<DigitalObject> results = new ArrayList<DigitalObject>();
         String userId=null;
         if (username.equals("admin")){
@@ -690,39 +701,65 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
             }
         }
         if (userId!=null){
-            String query = "type:DigitalSpecimen AND metadata/" + propertyName + ":" + escapeQueryParamValue(userId);
+            String query = "type:DigitalSpecimen AND " + userTypePropertyName + ":" + escapeQueryParamValue(userId);
             results = this.searchAll(query);
         }
 
         return results;
     }
 
-    private String getQueryDigitalSpecimensPropertyDateRange(String property,LocalDateTime startDatetime, LocalDateTime endDatetime, ZoneId zoneId){
+    /**
+     * Get all the digital specimens that its dateTimePropertyName passed as first parameter is inside the datetime range
+     * defined by the second and third parameter
+     * @param dateTimePropertyName name of the property that we want to use to filter the result by datetime range
+     * @param startDatetime start date time
+     * @param endDatetime end date time
+     * @return List of digital specimens that match the search criteria
+     */
+    private String getQueryDigitalSpecimensByDateTypeProperty(String dateTimePropertyName, ZonedDateTime startDatetime, ZonedDateTime endDatetime){
         String startEpoch="*";
         String endEpoch="*";
 
         if (startDatetime!=null){
-            startEpoch = Long.toString(startDatetime.atZone(zoneId).toInstant().toEpochMilli());
+            startEpoch = Long.toString(startDatetime.toInstant().toEpochMilli());
         }
         if (endDatetime!=null){
-            endEpoch = Long.toString(endDatetime.atZone(zoneId).toInstant().toEpochMilli());
+            endEpoch = Long.toString(endDatetime.toInstant().toEpochMilli());
         }
 
-        return "type:DigitalSpecimen AND " + property  + ":[" + startEpoch + " TO " + endEpoch +"]";
+        return "type:DigitalSpecimen AND " + dateTimePropertyName  + ":[" + startEpoch + " TO " + endEpoch +"]";
     }
 
-    private String getQueryDigitalSpecimensPropertyDateRecently(String property, Integer days){
-        ZoneId zoneId = ZoneId.systemDefault(); // or: ZoneId.of("Europe/London");
-        LocalDateTime endDatetime=LocalDateTime.now();
-        LocalDateTime startDatetime=LocalDateTime.now().minusDays(days);
+    /**
+     * Get all the digital specimens that its dateTimePropertyName passed as first parameter is inside the datetime range
+     * defined by the number of days before the current date and the current date
+     * @param dateTimePropertyName name of the property that we want to use to filter the result by datetime range
+     * @param days number of days before the current data to be use as the startDateTime
+     * @return List of digital specimens that match the search criteria
+     */
+    private String getQueryDigitalSpecimensByDateTypeProperty(String dateTimePropertyName, Integer days){
+        ZonedDateTime endDatetime = LocalDateTime.now().atZone(ZoneId.systemDefault());
+        ZonedDateTime startDatetime = LocalDateTime.now().minusDays(days).atZone(ZoneId.systemDefault());
 
-        return getQueryDigitalSpecimensPropertyDateRange(property,startDatetime,endDatetime,zoneId);
+        return getQueryDigitalSpecimensByDateTypeProperty(dateTimePropertyName,startDatetime,endDatetime);
     }
 
+    /**
+     * Function to escape a query param value
+     * @param paramValue value to escape
+     * @return value escaped
+     */
     private String escapeQueryParamValue(String paramValue){
         return "\"" + QueryParserBase.escape(paramValue) + "\"";
     }
 
+    /**
+     * Function that get the difference in the content of 2 digital specimens
+     * Note: it removes their "id" for comparison
+     * @param leftDs left digital specimen
+     * @param rightDs left digital specimen
+     * @return MapDifference with the result of the comparison
+     */
     private MapDifference<String, Object> compareContentDigitalObjects(DigitalObject leftDs, DigitalObject rightDs){
         JsonObject leftDsContent = leftDs.attributes.getAsJsonObject("content");
         JsonObject rightDsContent = rightDs.attributes.getAsJsonObject("content");
@@ -743,9 +780,13 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
     /* Methods to act as facade for DOIP client in order to avoid passing all the times the authInfo and serviceInfo */
     /*****************************************************************************************************************/
 
+    /**
+     * Function that release the resource taken by the digital object repository client
+     */
     public synchronized void close() {
         this.getDoipClient().close();
     }
+
 
     public DoipClientResponse performOperation(String targetId, String operationId, JsonObject attributes) throws DigitalObjectRepositoryException {
         try{

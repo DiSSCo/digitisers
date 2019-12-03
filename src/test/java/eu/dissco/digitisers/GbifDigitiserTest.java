@@ -1,15 +1,9 @@
 package eu.dissco.digitisers;
 
 import com.google.common.io.Resources;
-import net.dona.doip.client.DigitalObject;
 import org.junit.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.List;
-import java.util.UUID;
-
-import static org.junit.Assert.*;
 
 @Ignore
 public class GbifDigitiserTest {
@@ -41,6 +35,6 @@ public class GbifDigitiserTest {
     public void testImportDataToRepository_scientificName() throws Exception{
         String canonicalName = "Agathis montana";
         String kingdom = "Plantae";
-        digitiser.digitiseDigitalSpecimensByCanonicalNameAndKindgdom(canonicalName,kingdom);
+        digitiser.digitiseDigitalSpecimensByCanonicalNameAndKingdom(canonicalName,kingdom);
     }
 }

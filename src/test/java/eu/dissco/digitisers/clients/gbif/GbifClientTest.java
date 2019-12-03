@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import eu.dissco.digitisers.utils.FileUtils;
+import eu.dissco.digitisers.utils.JsonUtils;
 import org.apache.commons.configuration2.Configuration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -101,8 +102,7 @@ public class GbifClientTest {
         JsonArray institutions = gbifClient.getInstitutionsInfoByInstitutionCode(institutionCode);
         assertEquals("2 institutions should be found with code " + institutionCode, 2,institutions.size());
 
-        Gson gson = new Gson();
-        logger.debug(gson.toJson(institutions));
+        logger.debug(JsonUtils.serializeObject(institutions));
     }
 
     @Test

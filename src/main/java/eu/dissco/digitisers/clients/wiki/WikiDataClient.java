@@ -10,6 +10,7 @@ import org.apache.jena.query.*;
 
 import java.io.ByteArrayOutputStream;
 import java.util.Iterator;
+import java.util.Optional;
 
 
 public class WikiDataClient extends WikiClient{
@@ -30,18 +31,27 @@ public class WikiDataClient extends WikiClient{
     /* PUBLIC METHODS */
     /******************/
 
+    /**
+     * Function that returns the type of wiki we are using
+     * @return wikidata
+     */
     @Override
     public String getWikiType() {
         return "wikidata";
     }
 
-
+    /**
+     * Function to get information about the taxon concept hold in the wiki.
+     * @param canonicalName canonical name of the taxon concept to search
+     * @param kingdom name of the kingdom the taxon concept belongs to
+     * @return Json object with information of the page for the taxon concept, or null if not found
+     * @throws Exception
+     */
     @Override
     public JsonObject getWikiInformation(String canonicalName, String kingdom) throws Exception {
         JsonObject wikiInfoObj = null;
-        JsonObject wikiDataInfo = null;
         if (this.getMapPageInfoByCanonicalNameAndKingdom().containsKey(canonicalName+"#"+kingdom)) {
-            wikiInfoObj=this.getMapPageInfoByCanonicalNameAndKingdom().get(canonicalName+"#"+kingdom);
+            wikiInfoObj=this.getMapPageInfoByCanonicalNameAndKingdom().get(canonicalName+"#"+kingdom).orElse(null);
         } else {
             JsonObject taxonInfo = this.getTaxonConceptInfo(canonicalName,kingdom);
             JsonArray results = taxonInfo.getAsJsonObject("results").getAsJsonArray("bindings");
@@ -73,17 +83,22 @@ public class WikiDataClient extends WikiClient{
                     wikiInfoObj.addProperty("wikipediaURL",wikipediaResults.get(0).getAsJsonObject().getAsJsonObject("article").get("value").getAsString());
                 }
             }
-            this.getMapPageInfoByCanonicalNameAndKingdom().put(canonicalName+"#"+kingdom,wikiInfoObj);
+            this.getMapPageInfoByCanonicalNameAndKingdom().put(canonicalName+"#"+kingdom, Optional.ofNullable(wikiInfoObj));
         }
 
         return wikiInfoObj;
     }
 
+    /**
+     * Function that get the page url of the given wiki info object
+     * @param wikiInfo wiki info object from where to obtain the wiki page url
+     * @return wiki page url, or null if not found
+     */
     @Override
-    public String getPageURL(JsonObject wikiInfoObj){
+    public String getPageURL(JsonObject wikiInfo){
         String pageUrl = null;
-        if (wikiInfoObj!=null){
-            pageUrl = wikiInfoObj.get("wikidataPageURL").getAsString();
+        if (wikiInfo!=null){
+            pageUrl = wikiInfo.get("wikidataPageURL").getAsString();
         }
         return pageUrl;
     }
@@ -93,6 +108,14 @@ public class WikiDataClient extends WikiClient{
     /* PRIVATE METHODS */
     /*******************/
 
+    /**
+     * Function to get information about the taxon concept hold in the wiki
+     * For doing that it execute some SPARQL queries
+     * @param canonicalName canonical name of the taxon concept to search
+     * @param kingdom name of the kingdom the taxon concept belongs to
+     * @return Json object with information of the page for the taxon concept, or null if not found
+     * @throws Exception
+     */
     private JsonObject getTaxonConceptInfo(String canonicalName, String kingdom) throws Exception {
         String querySelectTaxon = this.getQueryTaxonConcept(canonicalName);
         JsonObject taxonInfo = this.executeSparqlSelectQuery(querySelectTaxon);
@@ -122,6 +145,11 @@ public class WikiDataClient extends WikiClient{
         return taxonInfo;
     }
 
+    /**
+     * Function to get the SPARQL query to obtain the page for the taxon concept
+     * @param canonicalName
+     * @return
+     */
     private String getQueryTaxonConcept(String canonicalName){
         String query = this.getWikiDataBuiltInPrefixes() +
                 "SELECT ?item ?itemLabel\n" +
@@ -134,19 +162,31 @@ public class WikiDataClient extends WikiClient{
         return query;
     }
 
+    /**
+     * Function to get the SPARQL query to check if taxon belongs to the kingdom
+     * @param taxonEntityId
+     * @param kingdomEntityId
+     * @return
+     */
     private String getQueryIsTaxonInKingdom(String taxonEntityId, String kingdomEntityId){
         String query = this.getWikiDataBuiltInPrefixes() +
                 "SELECT ?taxon ?taxonLabel\n" +
                 "WHERE \n" +
                 "{\n" +
                 "  BIND(wd:"+taxonEntityId+" AS ?taxon)\n" +
-                "  BIND(wd:"+kingdomEntityId+" AS ?kindgom) \n" +
-                "  ?taxon wdt:P171+ ?kindgom .\n" +
+                "  BIND(wd:"+kingdomEntityId+" AS ?kingdom) \n" +
+                "  ?taxon wdt:P171+ ?kingdom .\n" +
                 "  SERVICE wikibase:label { bd:serviceParam wikibase:language '[AUTO_LANGUAGE],en'. }    \n" +
                 "}";
         return query;
     }
 
+    /**
+     * Function that gets the taxon identifiers hold in the entity (page) passed as parameter
+     * @param entityId entity (page) from where to the taxon identifiers defined on it
+     * @return Json object with the result of executing the SPARQL query
+     * @throws Exception
+     */
     private JsonObject getTaxonIdentifiersByEntityId(String entityId) throws Exception {
         String querySelect = this.getWikiDataBuiltInPrefixes() +
                 "SELECT ?property ?name ?value ?link\n" +
@@ -166,6 +206,12 @@ public class WikiDataClient extends WikiClient{
         return this.executeSparqlSelectQuery(querySelect);
     }
 
+    /**
+     * Function that gets if the entity (page) has page also in wikipedia
+     * @param entityId entity (page) to check if it is found in wikipedia
+     * @return Json object with the result of executing the SPARQL query
+     * @throws Exception
+     */
     private JsonObject getWikipediaPageURL(String entityId) throws Exception {
         String querySelect = this.getWikiDataBuiltInPrefixes() +
                 "SELECT ?article\n" +
@@ -179,6 +225,10 @@ public class WikiDataClient extends WikiClient{
         return this.executeSparqlSelectQuery(querySelect);
     }
 
+    /**
+     * Get all the prefixes to be used in the SPARQL queries
+     * @return
+     */
     private String getWikiDataBuiltInPrefixes(){
         String prefixes = "PREFIX wd: <http://www.wikidata.org/entity/>\n" +
                 "PREFIX wds: <http://www.wikidata.org/entity/statement/>\n" +
@@ -214,6 +264,12 @@ public class WikiDataClient extends WikiClient{
         return prefixes;
     }
 
+    /**
+     * Function that execute the SPARQL query received as parameter an return the json object of its results
+     * @param querySelect SPARQL query to be executed
+     * @return json object with the result of its execution
+     * @throws Exception
+     */
     private JsonObject executeSparqlSelectQuery(String querySelect) throws Exception {
         String endpointUrl = this.getApiUrl();
         JsonObject jsonObject = null;

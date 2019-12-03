@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import eu.dissco.digitisers.clients.ebi.openapi.ApiException;
 import eu.dissco.digitisers.clients.ebi.openapi.model.WSEntry;
+import eu.dissco.digitisers.utils.JsonUtils;
 import org.junit.*;
 import org.junit.rules.ExpectedException;
 import org.slf4j.Logger;
@@ -39,8 +40,7 @@ public class EbiClientTest {
 
         assertTrue("The number of results should be greater or equals than 1 ", ebiResults.size()>=1);
 
-        Gson gson = new Gson();
-        logger.debug(gson.toJson(ebiResults));
+        logger.debug(JsonUtils.serializeObject(ebiResults));
     }
 
     @Test
@@ -51,8 +51,7 @@ public class EbiClientTest {
 
         assertTrue("The number of results should be greater or equals than 1 ", ebiResults.size()>=1);
 
-        Gson gson = new Gson();
-        logger.info(gson.toJson(ebiResults));
+        logger.info(JsonUtils.serializeObject(ebiResults));
     }
 
     @Test
@@ -73,8 +72,7 @@ public class EbiClientTest {
 
         assertEquals("The number of results should be 0 ", 0,ebiResults.size());
 
-        Gson gson = new Gson();
-        logger.debug(gson.toJson(ebiResults));
+        logger.debug(JsonUtils.serializeObject(ebiResults));
     }
 
     @Test
@@ -85,8 +83,7 @@ public class EbiClientTest {
 
         assertTrue("The number of results should be greater or equals than 1 ", ebiResults.size()>=1);
 
-        Gson gson = new Gson();
-        logger.debug(gson.toJson(ebiResults));
+        logger.debug(JsonUtils.serializeObject(ebiResults));
     }
 
     @Test
@@ -97,8 +94,7 @@ public class EbiClientTest {
 
         assertTrue("The number of results should be greater or equals than 1 ", ebiResults.size()>=1);
 
-        Gson gson = new Gson();
-        logger.debug(gson.toJson(ebiResults));
+        logger.debug(JsonUtils.serializeObject(ebiResults));
     }
 
     @Test
@@ -109,8 +105,7 @@ public class EbiClientTest {
 
         assertEquals("The number of results should be 0 ", 0,ebiResults.size());
 
-        Gson gson = new Gson();
-        logger.debug(gson.toJson(ebiResults));
+        logger.debug(JsonUtils.serializeObject(ebiResults));
     }
 
 }

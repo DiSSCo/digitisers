@@ -17,7 +17,8 @@ import java.io.File;
 import java.net.URLEncoder;
 import java.util.Base64;
 import java.util.Map;
-import java.util.TreeMap;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class GbifClient {
 
@@ -29,12 +30,12 @@ public class GbifClient {
     private static GbifClient instance=null;
     private final String apiUrl = "http://api.gbif.org/v1";
     private final GbifInfo gbifInfo;
-    private Map<String,JsonObject> mapTaxonById; //Map to improve efficiency of this class, so it doesn't need to call the external APIs when we already got results
-    private Map<String,JsonObject> mapParsedNameByScientificName; //Map to improve efficiency of this class
-    private Map<String,String> mapTaxonIdByCanonicalNameAndKingdom; //Map to improve efficiency of this class
-    private Map<String,JsonArray> mapInstitutionsInfoByCode; //Map to improve efficiency of this class
-    private Map<String,JsonObject> mapInstitutionInfoById; //Map to improve efficiency of this class
-    private Map<String,JsonObject> mapCollectionInfoByInstitutionIdAndCollectionName; //Map to improve efficiency of this class
+    private Map<String, Optional<JsonObject>> mapTaxonById; //Map to improve efficiency of this class, so it doesn't need to call the external APIs when we already got results
+    private Map<String,Optional<JsonObject>> mapParsedNameByScientificName; //Map to improve efficiency of this class
+    private Map<String,Optional<String>> mapTaxonIdByCanonicalNameAndKingdom; //Map to improve efficiency of this class
+    private Map<String,Optional<JsonArray>> mapInstitutionsInfoByCode; //Map to improve efficiency of this class
+    private Map<String,Optional<JsonObject>> mapInstitutionInfoById; //Map to improve efficiency of this class
+    private Map<String,Optional<JsonObject>> mapCollectionInfoByInstitutionIdAndCollectionName; //Map to improve efficiency of this class
 
 
     /***********************/
@@ -53,51 +54,51 @@ public class GbifClient {
         return gbifInfo;
     }
 
-    protected Map<String, JsonObject> getMapParsedNameByScientificName() {
+    protected Map<String, Optional<JsonObject>> getMapParsedNameByScientificName() {
         return mapParsedNameByScientificName;
     }
 
-    protected void setMapParsedNameByScientificName(Map<String, JsonObject> mapParsedNameByScientificName) {
+    protected void setMapParsedNameByScientificName(Map<String, Optional<JsonObject>> mapParsedNameByScientificName) {
         this.mapParsedNameByScientificName = mapParsedNameByScientificName;
     }
 
-    protected Map<String, JsonObject> getMapTaxonById() {
+    protected Map<String, Optional<JsonObject>> getMapTaxonById() {
         return mapTaxonById;
     }
 
-    protected void setMapTaxonById(Map<String, JsonObject> mapTaxonById) {
+    protected void setMapTaxonById(Map<String, Optional<JsonObject>> mapTaxonById) {
         this.mapTaxonById = mapTaxonById;
     }
 
-    protected Map<String, String> getMapTaxonIdByCanonicalNameAndKingdom() {
+    protected Map<String, Optional<String>> getMapTaxonIdByCanonicalNameAndKingdom() {
         return mapTaxonIdByCanonicalNameAndKingdom;
     }
 
-    protected void setMapTaxonIdByCanonicalNameAndKingdom(Map<String, String> mapTaxonIdByCanonicalNameAndKingdom) {
+    protected void setMapTaxonIdByCanonicalNameAndKingdom(Map<String, Optional<String>> mapTaxonIdByCanonicalNameAndKingdom) {
         this.mapTaxonIdByCanonicalNameAndKingdom = mapTaxonIdByCanonicalNameAndKingdom;
     }
 
-    public Map<String, JsonArray> getMapInstitutionsInfoByCode() {
+    public Map<String, Optional<JsonArray>> getMapInstitutionsInfoByCode() {
         return mapInstitutionsInfoByCode;
     }
 
-    public void setMapInstitutionsInfoByCode(Map<String, JsonArray> mapInstitutionsInfoByCode) {
+    public void setMapInstitutionsInfoByCode(Map<String, Optional<JsonArray>> mapInstitutionsInfoByCode) {
         this.mapInstitutionsInfoByCode = mapInstitutionsInfoByCode;
     }
 
-    public Map<String, JsonObject> getMapInstitutionInfoById() {
+    public Map<String, Optional<JsonObject>> getMapInstitutionInfoById() {
         return mapInstitutionInfoById;
     }
 
-    public void setMapInstitutionInfoById(Map<String, JsonObject> mapInstitutionInfoById) {
+    public void setMapInstitutionInfoById(Map<String, Optional<JsonObject>> mapInstitutionInfoById) {
         this.mapInstitutionInfoById = mapInstitutionInfoById;
     }
 
-    public Map<String, JsonObject> getMapCollectionInfoByInstitutionIdAndCollectionName() {
+    public Map<String, Optional<JsonObject>> getMapCollectionInfoByInstitutionIdAndCollectionName() {
         return mapCollectionInfoByInstitutionIdAndCollectionName;
     }
 
-    public void setMapCollectionInfoByInstitutionIdAndCollectionName(Map<String, JsonObject> mapCollectionInfoByInstitutionIdAndCollectionName) {
+    public void setMapCollectionInfoByInstitutionIdAndCollectionName(Map<String, Optional<JsonObject>> mapCollectionInfoByInstitutionIdAndCollectionName) {
         this.mapCollectionInfoByInstitutionIdAndCollectionName = mapCollectionInfoByInstitutionIdAndCollectionName;
     }
 
@@ -111,12 +112,12 @@ public class GbifClient {
      */
     private GbifClient(GbifInfo gbifInfo){
         this.gbifInfo=gbifInfo;
-        this.mapParsedNameByScientificName = new TreeMap<String,JsonObject>();
-        this.mapTaxonById = new TreeMap<String, JsonObject>();
-        this.mapTaxonIdByCanonicalNameAndKingdom = new TreeMap<String, String>();
-        this.mapInstitutionsInfoByCode = new TreeMap<String, JsonArray>();
-        this.mapInstitutionInfoById = new TreeMap<String, JsonObject>();
-        this.mapCollectionInfoByInstitutionIdAndCollectionName = new TreeMap<String, JsonObject>();
+        this.mapParsedNameByScientificName = new ConcurrentHashMap<String,Optional<JsonObject>>();
+        this.mapTaxonById = new ConcurrentHashMap<String, Optional<JsonObject>>();
+        this.mapTaxonIdByCanonicalNameAndKingdom = new ConcurrentHashMap<String, Optional<String>>();
+        this.mapInstitutionsInfoByCode = new ConcurrentHashMap<String, Optional<JsonArray>>();
+        this.mapInstitutionInfoById = new ConcurrentHashMap<String, Optional<JsonObject>>();
+        this.mapCollectionInfoByInstitutionIdAndCollectionName = new ConcurrentHashMap<String, Optional<JsonObject>>();
     }
 
 
@@ -135,40 +136,59 @@ public class GbifClient {
         return instance;
     }
 
+    /**
+     * Function to get the taxon concept information in GBIF by its taxonID
+     * @param taxonId taxonId of the taxon concept we want to obtain its information
+     * @return json object with the taxon concept information for the given taxonID if its found in GBIF, or null otherwise
+     * @throws Exception
+     */
     public JsonObject getTaxonInfoById(String taxonId) throws Exception {
         JsonObject gbifTaxonInfo=null;
         if (this.getMapTaxonById().containsKey(taxonId)){
-            gbifTaxonInfo = this.getMapTaxonById().get(taxonId);
+            gbifTaxonInfo = this.getMapTaxonById().get(taxonId).orElse(null);
         } else{
             try{
                 gbifTaxonInfo = (JsonObject) NetUtils.doGetRequestJson(this.getApiUrl()+"/species/"+taxonId);
             } catch (Exception e){
                 this.getLogger().error("Error getting GBIF taxon info for taxonId="+taxonId);
             }
-            this.getMapTaxonById().put(taxonId,gbifTaxonInfo);
+            this.getMapTaxonById().put(taxonId,Optional.ofNullable(gbifTaxonInfo));
         }
         return gbifTaxonInfo;
     }
 
+    /**
+     * Function that parsed a scientific names.
+     * @param scientificName scientific name to be parsed
+     * @return Json object with the information of parsing the scientific name or null if the parser fails
+     * @throws Exception
+     */
     public JsonObject parseName(String scientificName) throws Exception {
         JsonObject parsedName = null;
         if (this.getMapParsedNameByScientificName().containsKey(scientificName)){
-            parsedName = this.getMapParsedNameByScientificName().get(scientificName);
+            parsedName = this.getMapParsedNameByScientificName().get(scientificName).orElse(null);
         } else{
             String scientificNameEncoded = URLEncoder.encode(scientificName, "UTF-8");
             JsonArray parsedNames =(JsonArray) NetUtils.doGetRequestJson(this.getApiUrl()+"/parser/name?name="+scientificNameEncoded);
             if (parsedNames.size()==1){
                 parsedName = parsedNames.get(0).getAsJsonObject();
             }
-            this.getMapParsedNameByScientificName().put(scientificName,parsedName);
+            this.getMapParsedNameByScientificName().put(scientificName,Optional.ofNullable(parsedName));
         }
         return parsedName;
     }
 
+    /**
+     * Function to get the taxon concept information holds in GBIF by canonicalName and kingdom
+     * @param canonicalName canonical name of the taxon concept we want to obtain its info
+     * @param kingdom name of the kingdom the taxon concept belongs to
+     * @return json object with the taxon concept information if its found in GBIF, or null otherwise
+     * @throws Exception
+     */
     public String getTaxonIdByCanonicalNameAndKingdom(String canonicalName, String kingdom) throws Exception {
         String taxonId = null;
         if (this.getMapTaxonIdByCanonicalNameAndKingdom().containsKey(canonicalName+"#"+kingdom)){
-            this.getMapTaxonIdByCanonicalNameAndKingdom().get(canonicalName+"#"+kingdom);
+            taxonId = this.getMapTaxonIdByCanonicalNameAndKingdom().get(canonicalName+"#"+kingdom).orElse(null);
         } else{
             String scientificNameEncoded = URLEncoder.encode(canonicalName, "UTF-8");
             String kingdomEncoded = URLEncoder.encode(kingdom, "UTF-8");
@@ -176,16 +196,29 @@ public class GbifClient {
             if (searchResult!=null && searchResult.has("usageKey") && canonicalName.equalsIgnoreCase(searchResult.get("canonicalName").getAsString())){
                 taxonId=searchResult.get("usageKey").getAsString();
             }
-            this.getMapTaxonIdByCanonicalNameAndKingdom().put(canonicalName+"#"+kingdom,taxonId);
+            this.getMapTaxonIdByCanonicalNameAndKingdom().put(canonicalName+"#"+kingdom,Optional.ofNullable(taxonId));
         }
         return taxonId;
     }
 
+    /**
+     * Function that download all the specimens (preserved, living and fossils) for a given taxon concept
+     * @param canonicalName canonical name of the taxon concept we want to obtain its specimens
+     * @param kingdom name of the kingdom the taxon concept belongs to
+     * @return Dwca file with the specimen data obtained from GBIF
+     * @throws Exception
+     */
     public File downloadOccurrencesByCanonicalNameAndKingdom(String canonicalName, String kingdom) throws Exception {
         String taxonId = this.getTaxonIdByCanonicalNameAndKingdom(canonicalName,kingdom);
         return downloadOccurrencesByTaxonId(taxonId);
     }
 
+    /**
+     * Function that download all the specimens (preserved, living and fossils) for a given taxon concept
+     * @param taxonId taxonID of the taxon concept we want to obtain its specimens
+     * @return Dwca file with the specimen data obtained from GBIF
+     * @throws Exception
+     */
     public File downloadOccurrencesByTaxonId(String taxonId) throws Exception {
         File dwcaFile = null;
         String auth = "Basic " + Base64.getEncoder().encodeToString((this.getGbifInfo().getUsername()+":"+this.getGbifInfo().getPassword()).getBytes());
@@ -217,10 +250,18 @@ public class GbifClient {
         return dwcaFile;
     }
 
+    /**
+     * Function that gets the institution information stored in GRSciColl, by searching for its institution code.
+     * Note: As the institution code is not unique, this function will return an json array with the information of all
+     * the institutions that has this code
+     * @param institutionCode code of the institution to get its information
+     * @return json array with the information of all the institutions that has this code
+     * @throws Exception
+     */
     public JsonArray getInstitutionsInfoByInstitutionCode(String institutionCode) throws Exception {
         JsonArray institutionsInfo = null;
         if (this.getMapInstitutionsInfoByCode().containsKey(institutionCode)){
-            institutionsInfo = this.getMapInstitutionsInfoByCode().get(institutionCode);
+            institutionsInfo = this.getMapInstitutionsInfoByCode().get(institutionCode).orElse(null);
         } else{
             String institutionCodeEncoded = URLEncoder.encode("\""+institutionCode+"\"", "UTF-8");
             JsonObject data = (JsonObject) this.getDataPaginated(this.getApiUrl()+"/grscicoll/institution?q="+institutionCodeEncoded,50,0);
@@ -239,18 +280,24 @@ public class GbifClient {
                 }
                 String institutionKey = institutionInfo.getAsJsonObject().get("key").getAsString();
                 if (!this.getMapInstitutionInfoById().containsKey(institutionKey)){
-                    this.getMapInstitutionInfoById().put(institutionKey,institutionInfo.getAsJsonObject());
+                    this.getMapInstitutionInfoById().put(institutionKey,Optional.ofNullable(institutionInfo.getAsJsonObject()));
                 }
             }
-            this.getMapInstitutionsInfoByCode().put(institutionCode,institutionsInfo);
+            this.getMapInstitutionsInfoByCode().put(institutionCode,Optional.ofNullable(institutionsInfo));
         }
         return institutionsInfo;
     }
 
+    /**
+     * Function that gets the institution information stored in GRSciColl, by searching for its institution id.
+     * @param institutionId id of the institution to get its information
+     * @return json object with the information of all the institutions if it was found, or null otherwise
+     * @throws Exception
+     */
     public JsonObject getInstitutionInfoByInstitutionId(String institutionId) throws Exception {
         JsonObject institutionInfo = null;
         if (this.getMapInstitutionInfoById().containsKey(institutionId)){
-            institutionInfo = this.getMapInstitutionInfoById().get(institutionId);
+            institutionInfo = this.getMapInstitutionInfoById().get(institutionId).orElse(null);
         } else{
             institutionInfo = (JsonObject) NetUtils.doGetRequestJson(this.getApiUrl()+"/grscicoll/institution/"+institutionId);
 
@@ -260,16 +307,22 @@ public class GbifClient {
                 institutionInfo.getAsJsonObject().add("country",countryInfo);
             }
 
-            this.getMapInstitutionInfoById().put(institutionId,institutionInfo.getAsJsonObject());
+            this.getMapInstitutionInfoById().put(institutionId,Optional.ofNullable(institutionInfo.getAsJsonObject()));
         }
         return institutionInfo;
     }
 
-
+    /**
+     * Function that gets collection information from its insitution id and its collection code
+     * @param institutionId institution id
+     * @param collectionCode collection code
+     * @return json object with the information of the collection if its found in GBIF or null otherwise
+     * @throws Exception
+     */
     public JsonObject getCollectionInfoByInstitutionIdAndCollectionCode(String institutionId, String collectionCode) throws Exception {
         JsonObject collectionInfo = null;
         if (this.getMapCollectionInfoByInstitutionIdAndCollectionName().containsKey(institutionId+"#"+collectionCode)){
-            collectionInfo = this.getMapCollectionInfoByInstitutionIdAndCollectionName().get(institutionId+"#"+collectionCode);
+            collectionInfo = this.getMapCollectionInfoByInstitutionIdAndCollectionName().get(institutionId+"#"+collectionCode).orElse(null);
         } else{
             String collectionCodeEncoded = URLEncoder.encode("\""+collectionCode+"\"", "UTF-8");
             JsonObject data = (JsonObject)  NetUtils.doGetRequestJson(this.getApiUrl()+"/grscicoll/collection?institution="+institutionId+"&?q="+collectionCodeEncoded);
@@ -284,7 +337,7 @@ public class GbifClient {
                 collectionInfo = jsonArray.get(0).getAsJsonObject();
             }
 
-            this.getMapCollectionInfoByInstitutionIdAndCollectionName().put(institutionId+"#"+collectionCode,collectionInfo);
+            this.getMapCollectionInfoByInstitutionIdAndCollectionName().put(institutionId+"#"+collectionCode,Optional.ofNullable(collectionInfo));
         }
         return collectionInfo;
     }
@@ -294,6 +347,14 @@ public class GbifClient {
     /* PRIVATE METHODS */
     /*******************/
 
+    /**
+     * Function to get recursively get all the data, when we call an endpoint that returns the result using pagination
+     * @param endPoint endpoint to get the data from
+     * @param limit number of the element to get for page
+     * @param offset offset
+     * @return Json object with the response containing all the object from the endpoint
+     * @throws Exception
+     */
     private JsonObject getDataPaginated(String endPoint, int limit, int offset) throws Exception {
         JsonObject response =(JsonObject) NetUtils.doGetRequestJson(endPoint + "&limit=" + limit + "&offset=" + offset);
         int responseLimit = response.get("limit").getAsInt();
@@ -306,6 +367,13 @@ public class GbifClient {
         return response;
     }
 
+    /**
+     * Function that get the country information from an institution object.
+     * Note: If the object has an "address" attribute, it tries to get it from there, if not it tries to use the "mailingAdress"
+     * attribute and if not it tries to get it from the country where the homepage of the institution is hosted
+     * @param institutionInfo institution object from which we want to obtain its country information
+     * @return Country information of the institution when it can be found, or null otherwise
+     */
     private JsonObject getInstitutionCountryInfo(JsonObject institutionInfo){
         JsonObject countryInfo = null;
         String institutionCountry = null;

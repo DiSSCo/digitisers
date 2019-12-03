@@ -1,6 +1,7 @@
 package eu.dissco.digitisers.clients.digitalObjectRepository;
 
 import com.google.gson.JsonObject;
+import eu.dissco.digitisers.utils.DigitalSpecimenUtils;
 import eu.dissco.digitisers.utils.FileUtils;
 import net.dona.doip.client.DigitalObject;
 import org.apache.commons.configuration2.Configuration;
@@ -31,7 +32,7 @@ public class DigitalObjectRepositoryClientTest {
     public static void setup() throws ConfigurationException, DigitalObjectRepositoryException {
         Configuration config = FileUtils.loadConfigurationFromResourceFile("config.properties");
         DigitalObjectRepositoryInfo digitalObjectRepositoryInfo =  DigitalObjectRepositoryInfo.getDigitalObjectRepositoryInfoFromConfig(config);
-        digitalObjectRepositoryClient = DigitalObjectRepositoryClient.getInstance(digitalObjectRepositoryInfo);
+        digitalObjectRepositoryClient = new DigitalObjectRepositoryClient(digitalObjectRepositoryInfo);
     }
 
     @AfterClass
@@ -100,7 +101,7 @@ public class DigitalObjectRepositoryClientTest {
 
         assertNotNull("Digital specimen shouldn't be null", ds);
 
-        String dsScientificName = ds.attributes.get("content").getAsJsonObject().get("scientificName").getAsString();
+        String dsScientificName = DigitalSpecimenUtils.getStringPropertyFromDS(ds,"scientificName");
         logger.debug("DS ID: " + dsid + " has the scientific name '" + dsScientificName + "'");
         assertEquals("The scientific doesn't match","Achillea pannonica Scheele",dsScientificName);
     }
@@ -114,7 +115,7 @@ public class DigitalObjectRepositoryClientTest {
 
         assertNotNull("Digital specimen shouldn't be null", ds);
 
-        String dsScientificName = ds.attributes.get("content").getAsJsonObject().get("scientificName").getAsString();
+        String dsScientificName = DigitalSpecimenUtils.getStringPropertyFromDS(ds,"scientificName");
         logger.debug("DS has the scientific name '" + dsScientificName + "'");
         assertEquals("The scientific doesn't match","Achillea pannonica Scheele",dsScientificName);
     }
@@ -147,14 +148,14 @@ public class DigitalObjectRepositoryClientTest {
     @Test
     public void testCreateDigitalSpecimen() throws DigitalObjectRepositoryException{
         DigitalObject dummyDs = createDummyDS();
-        DigitalObject creationResult = digitalObjectRepositoryClient.createDigitalSpecimen(dummyDs);
-        if (creationResult==null){
+        DigitalObject dsCreated = digitalObjectRepositoryClient.createDigitalSpecimen(dummyDs);
+        if (dsCreated==null){
             logger.error("Fail to create ds",dummyDs);
         } else{
-            logger.info("DS created with id: " + creationResult.attributes.getAsJsonObject("content").get("id").getAsString());
+            logger.info("DS created with id: " + DigitalSpecimenUtils.getStringPropertyFromDS(dsCreated,"id"));
         }
 
-        assertNotNull("Digital specimen should have been created", creationResult);
+        assertNotNull("Digital specimen should have been created", dsCreated);
     }
 
     @Test
@@ -173,12 +174,10 @@ public class DigitalObjectRepositoryClientTest {
 
     @Test
     public void testGetDigitalSpecimensCreatedBetweenDateRange() throws DigitalObjectRepositoryException {
-        LocalDateTime startDatetime = LocalDateTime.now().minusDays(7);
-        LocalDateTime endDatetime = LocalDateTime.now();
+        ZonedDateTime startDatetime = LocalDateTime.now().minusDays(7).atZone(ZoneId.systemDefault());
+        ZonedDateTime endDatetime = LocalDateTime.now().atZone(ZoneId.systemDefault());
 
-        ZoneId zoneId = ZoneId.systemDefault(); // or: ZoneId.of("Europe/London");
-
-        List<DigitalObject> listDs = digitalObjectRepositoryClient.getDigitalSpecimensCreatedBetweenDateRange(startDatetime,endDatetime,zoneId);
+        List<DigitalObject> listDs = digitalObjectRepositoryClient.getDigitalSpecimensCreatedBetweenDateRange(startDatetime,endDatetime);
         assertTrue("List of ds created in the time period "+ startDatetime + " to "+ endDatetime + " should have at least 1 element", listDs.size()>=1);
     }
 
@@ -190,44 +189,40 @@ public class DigitalObjectRepositoryClientTest {
 
     @Test
     public void testGetDigitalSpecimensCreatedSince() throws DigitalObjectRepositoryException {
-        LocalDateTime datetime=LocalDateTime.parse("2019-10-01T00:00:00.000");
-        ZoneId zoneId = ZoneId.systemDefault(); // or: ZoneId.of("Europe/London");
-        List<DigitalObject> listDs = digitalObjectRepositoryClient.getDigitalSpecimensCreatedSince(datetime,zoneId);
+        ZonedDateTime datetime=LocalDateTime.parse("2019-10-01T00:00:00.000").atZone(ZoneId.systemDefault());
+        List<DigitalObject> listDs = digitalObjectRepositoryClient.getDigitalSpecimensCreatedSince(datetime);
         assertTrue("List of ds created since "+ datetime + " should have at least 1 element", listDs.size()>=1);
     }
 
     @Test
     public void testGetDigitalSpecimensCreatedUntil() throws DigitalObjectRepositoryException {
-        LocalDateTime datetime=LocalDateTime.parse("2019-10-01T00:00:00.000");
-        ZoneId zoneId = ZoneId.systemDefault(); // or: ZoneId.of("Europe/London");
-        List<DigitalObject> listDs = digitalObjectRepositoryClient.getDigitalSpecimensCreatedUntil(datetime,zoneId);
+        ZonedDateTime datetime=LocalDateTime.parse("2019-10-01T00:00:00.000").atZone(ZoneId.systemDefault());
+        List<DigitalObject> listDs = digitalObjectRepositoryClient.getDigitalSpecimensCreatedUntil(datetime);
         assertTrue("List of ds created until "+ datetime + " should have at least 1 element", listDs.size()>=1);
     }
 
     @Test
     public void testGetDigitalSpecimensModifiedBetweenDateRange() throws DigitalObjectRepositoryException {
-        LocalDateTime startDatetime = LocalDateTime.now().minusDays(7);
-        LocalDateTime endDatetime = LocalDateTime.now();
+        ZonedDateTime startDatetime = LocalDateTime.now().minusDays(7).atZone(ZoneId.systemDefault());
+        ZonedDateTime endDatetime = LocalDateTime.now().atZone(ZoneId.systemDefault());
 
         ZoneId zoneId = ZoneId.systemDefault(); // or: ZoneId.of("Europe/London");
 
-        List<DigitalObject> listDs = digitalObjectRepositoryClient.getDigitalSpecimensModifiedBetweenDateRange(startDatetime,endDatetime,zoneId);
+        List<DigitalObject> listDs = digitalObjectRepositoryClient.getDigitalSpecimensModifiedBetweenDateRange(startDatetime,endDatetime);
         assertTrue("List of ds modified in the time period "+ startDatetime + " to "+ endDatetime + " should have at least 1 element", listDs.size()>=1);
     }
 
     @Test
     public void testGetDigitalSpecimensModifiedSince() throws DigitalObjectRepositoryException {
-        LocalDateTime datetime=LocalDateTime.parse("2019-10-01T00:00:00.000");
-        ZoneId zoneId = ZoneId.systemDefault(); // or: ZoneId.of("Europe/London");
-        List<DigitalObject> listDs = digitalObjectRepositoryClient.getDigitalSpecimensModifiedSince(datetime,zoneId);
+        ZonedDateTime datetime = LocalDateTime.parse("2019-10-01T00:00:00.000").atZone(ZoneId.systemDefault());
+        List<DigitalObject> listDs = digitalObjectRepositoryClient.getDigitalSpecimensModifiedSince(datetime);
         assertTrue("List of ds modified since "+ datetime + " should have at least 1 element", listDs.size()>=1);
     }
 
     @Test
     public void testGetDigitalSpecimensModifiedUntil() throws DigitalObjectRepositoryException {
-        LocalDateTime datetime=LocalDateTime.parse("2019-10-01T00:00:00.000");
-        ZoneId zoneId = ZoneId.systemDefault(); // or: ZoneId.of("Europe/London");
-        List<DigitalObject> listDs = digitalObjectRepositoryClient.getDigitalSpecimensModifiedUntil(datetime,zoneId);
+        ZonedDateTime datetime = LocalDateTime.parse("2019-10-01T00:00:00.000").atZone(ZoneId.systemDefault());
+        List<DigitalObject> listDs = digitalObjectRepositoryClient.getDigitalSpecimensModifiedUntil(datetime);
         assertTrue("List of ds modified until "+ datetime + " should have at least 1 element", listDs.size()>=1);
     }
 
@@ -269,11 +264,30 @@ public class DigitalObjectRepositoryClientTest {
         }
         long endTime = System.nanoTime();
         long timeElapsed = endTime - startTime;
-        logger.info("Average deletion time per ds " + (timeElapsed/1000000)/listDs.size() + " miliseconds ");
+        if (listDs.size()>0) logger.info("Average deletion time per ds " + (timeElapsed/1000000)/listDs.size() + " miliseconds ");
 
         List<DigitalObject> listDsAfterDeletion = digitalObjectRepositoryClient.getDigitalSpecimensCreatedBy(username);
         assertTrue("All dummy digital specimens should have been deleted", listDsAfterDeletion.size()==0);
     }
+
+    @Test
+    public void testDeleteAllProvenanceRecords() throws DigitalObjectRepositoryException{
+        ///Only connecting with admin user we can delete EventProvenanceRecords
+        List<DigitalObject> digitalObjectList = digitalObjectRepositoryClient.searchAll("type:EventProvenanceRecord");
+
+        long startTime = System.nanoTime();
+        for (DigitalObject digitalObject:digitalObjectList) {
+            digitalObjectRepositoryClient.delete(digitalObject.id);
+            logger.info("Deleted digital object " + digitalObject.id);
+        }
+        long endTime = System.nanoTime();
+        long timeElapsed = endTime - startTime;
+        if (digitalObjectList.size()>0) logger.info("Average deletion time per dobj " + (timeElapsed/1000000)/digitalObjectList.size() + " miliseconds ");
+
+        List<DigitalObject> listAfterDeletion = digitalObjectRepositoryClient.searchAll("type:EventProvenanceRecord");
+        assertTrue("All prov records should have been deleted", listAfterDeletion.size()==0);
+    }
+
 
     @Test
     public void getVersionsOfObject() throws DigitalObjectRepositoryException{
@@ -286,33 +300,30 @@ public class DigitalObjectRepositoryClientTest {
     public void getVersionOfObjectAtGivenTime_pastVersion() throws DigitalObjectRepositoryException{
         String objectID="prov.994/86f7e437faa5a7fce15d";
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-        LocalDateTime dateTime = LocalDateTime.parse("2019-11-06 17:01:02",formatter);
-        ZoneId zoneId = ZoneId.systemDefault(); // or: ZoneId.of("Europe/London");
+        ZonedDateTime zonedDateTime = LocalDateTime.parse("2019-11-06 17:01:02",formatter).atZone(ZoneId.systemDefault());
 
-        DigitalObject digitalObject = digitalObjectRepositoryClient.getVersionOfObjectAtGivenTime(objectID,dateTime,zoneId);
+        DigitalObject digitalObject = digitalObjectRepositoryClient.getVersionOfObjectAtGivenTime(objectID,zonedDateTime);
         assertEquals("The id of the version should be","prov.994/845dbdafcc184cd0ddea",digitalObject.id);
-        assertEquals("Content.name should be","c",digitalObject.attributes.getAsJsonObject("content").get("name").getAsString());
+        assertEquals("Content.name should be","c",DigitalSpecimenUtils.getStringPropertyFromDS(digitalObject,"name"));
     }
 
     @Test
     public void getVersionOfObjectAtGivenTime_currentVersion() throws DigitalObjectRepositoryException{
         String objectID="prov.994/86f7e437faa5a7fce15d";
-        LocalDateTime dateTime = LocalDateTime.now();
-        ZoneId zoneId = ZoneId.systemDefault(); // or: ZoneId.of("Europe/London");
+        ZonedDateTime zonedDateTime = LocalDateTime.now().atZone(ZoneId.systemDefault());
 
-        DigitalObject digitalObject = digitalObjectRepositoryClient.getVersionOfObjectAtGivenTime(objectID,dateTime,zoneId);
+        DigitalObject digitalObject = digitalObjectRepositoryClient.getVersionOfObjectAtGivenTime(objectID,zonedDateTime);
         assertEquals("The id of the version should be","prov.994/86f7e437faa5a7fce15d",digitalObject.id);
-        assertEquals("Content.name should be","d",digitalObject.attributes.getAsJsonObject("content").get("name").getAsString());
+        assertEquals("Content.name should be","d",DigitalSpecimenUtils.getStringPropertyFromDS(digitalObject,"name"));
     }
 
     @Test
     public void getVersionObjectAtGivenTime_dateBeforeObjectWasCreated() throws DigitalObjectRepositoryException{
         String objectID="prov.994/86f7e437faa5a7fce15d";
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-        LocalDateTime dateTime = LocalDateTime.parse("2019-11-01 00:00:00",formatter);
-        ZoneId zoneId = ZoneId.systemDefault(); // or: ZoneId.of("Europe/London");
+        ZonedDateTime zonedDateTime = LocalDateTime.parse("2019-11-01 00:00:00",formatter).atZone(ZoneId.systemDefault());
 
-        DigitalObject digitalObject = digitalObjectRepositoryClient.getVersionOfObjectAtGivenTime(objectID,dateTime,zoneId);
+        DigitalObject digitalObject = digitalObjectRepositoryClient.getVersionOfObjectAtGivenTime(objectID,zonedDateTime);
         assertNull("Object shouldn't exist at that time",digitalObject);
     }
 
@@ -322,12 +333,11 @@ public class DigitalObjectRepositoryClientTest {
         //get the status of the object after it was created but before is was modified for the first time
         String objectID="prov.994/86f7e437faa5a7fce15d";
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-        LocalDateTime dateTime = LocalDateTime.parse("2019-11-06 16:08:35",formatter);
-        ZoneId zoneId = ZoneId.systemDefault(); // or: ZoneId.of("Europe/London");
+        ZonedDateTime zonedDateTime = LocalDateTime.parse("2019-11-06 16:08:35",formatter).atZone(ZoneId.systemDefault());
 
-        DigitalObject digitalObject = digitalObjectRepositoryClient.getVersionOfObjectAtGivenTime(objectID,dateTime,zoneId);
+        DigitalObject digitalObject = digitalObjectRepositoryClient.getVersionOfObjectAtGivenTime(objectID,zonedDateTime);
         assertEquals("The id of the version should be","prov.994/586023191257543c91d6",digitalObject.id);
-        assertEquals("Content.name should be","a",digitalObject.attributes.getAsJsonObject("content").get("name").getAsString());
+        assertEquals("Content.name should be","a",DigitalSpecimenUtils.getStringPropertyFromDS(digitalObject,"name"));
     }
 
     @Test

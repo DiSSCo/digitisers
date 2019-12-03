@@ -10,7 +10,8 @@ This java project provides a simple mechanism to create Digital Specimens in the
 mvn package
 
 ### 1.2. Create a config properties file to be used during the execution
-Use the file src/test/resources/config_template.properties as template to create your own config.properties file to be used during the execution
+Use the file src/test/resources/config_template.properties as template to create your own config.properties file to be 
+used during the execution
 
 ### 1.3 Run the program with the desired parameters
 <pre><code>
@@ -37,3 +38,10 @@ java -jar digitisers-1.0-jar-with-dependencies.jar -c <b>PATH_TO_CONFIGURATION_F
 <pre><code>
 java -jar digitisers-1.0-jar-with-dependencies.jar -c <b>PATH_TO_CONFIGURATION_FILE</b> -m gbif -n <b>CANONICAL_NAME</b> -k <b>KINGDOM</b>
 </code></pre>
+
+
+## 2. Features to be added in the future
+* Support different dwc-a formats. Currently the system is only working with dwc-a files obtained from downloaded 
+occurrence data from GBIF. Add support for dwc-a obtained from IPT (https://ipt.gbif.org/) and from NHMUK (https://data.nhm.ac.uk/dataset/collection-specimens/)
+* Review fields used to populate the Digital Specimen's content from the DwC-a file (core vs verbatim, fields not clear, etc.) 
+* Review how to calculate MIDS level

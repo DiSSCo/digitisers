@@ -1,11 +1,16 @@
 package eu.dissco.digitisers.utils;
 
+import com.google.common.collect.ConcurrentHashMultiset;
 import com.google.common.collect.MapDifference;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.junit.Assert.*;
 
@@ -52,7 +57,7 @@ public class JsonUtilsTest {
                 "  ],\n" +
                 "  \"favorite\": true,\n" +
                 "  \"groups\": [\n" +
-                "    \"close-friends\",\n" +
+                "    \"stopConsumers-friends\",\n" +
                 "    \"gym\"\n" +
                 "  ]\n" +
                 "}";
@@ -63,7 +68,6 @@ public class JsonUtilsTest {
         MapDifference<String, Object> comparisonResult = JsonUtils.compareJsonElements(leftJsonElem,rightJsonElem);
 
         assertFalse("Json elements should be different", comparisonResult.areEqual());
-
         this.printComparisonResult(comparisonResult);
     }
 

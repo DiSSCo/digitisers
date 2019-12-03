@@ -12,18 +12,38 @@ import java.util.stream.Stream;
 
 public final class FlatMapUtils {
 
+    /**************/
+    /* ATTRIBUTES */
+    /**************/
+
     private final static Logger logger = LoggerFactory.getLogger(FlatMapUtils.class);
 
-    private FlatMapUtils() {
-        throw new AssertionError("No instances for you!");
-    }
 
+    /******************/
+    /* PUBLIC METHODS */
+    /******************/
+
+    /**
+     * Flat the Map object received as parameter
+     * @param map Map to be flatter
+     * @return Map flatten
+     */
     public static Map<String, Object> flatten(Map<String, Object> map) {
         return map.entrySet().stream()
                 .flatMap(FlatMapUtils::flatten)
                 .collect(LinkedHashMap::new, (m, e) -> m.put("/" + e.getKey(), e.getValue()), LinkedHashMap::putAll);
     }
 
+
+    /*******************/
+    /* PRIVATE METHODS */
+    /*******************/
+
+    /**
+     * Flat a map entry
+     * @param entry Map entry to be flatten
+     * @return Stream with the map entry flatten
+     */
     private static Stream<Map.Entry<String, Object>> flatten(Map.Entry<String, Object> entry) {
         if (entry == null) {
             return Stream.empty();
