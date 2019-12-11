@@ -19,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -576,7 +577,7 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
      * Note: This function use the CORDRA REST API as this functionality is not provided in DOIP yet
      * @param objectId
      * @param zonedDateTime datetime from when we want to retrieve the status of the digital object
-     * @return List of versions (digital objects) of a given object
+     * @return Version of the object at the given time
      * @throws DigitalObjectRepositoryException
      */
     public DigitalObject getVersionOfObjectAtGivenTime(String objectId, ZonedDateTime zonedDateTime) throws DigitalObjectRepositoryException{
@@ -587,13 +588,29 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
         return this.getVersionOfObjectAtGivenTime(objectId,datetimeEpoch);
     }
 
+    /**
+     * Function that get the object as it was the the time specified
+     * @param objectId
+     * @param utcDatetime string of utc time in ISO 8601
+     * @return Version of the object at the given time
+     * @throws DigitalObjectRepositoryException
+     */
+    public DigitalObject getVersionOfObjectAtGivenTime(String objectId, String utcDatetime) throws DigitalObjectRepositoryException {
+        Long timestamp;
+        if (StringUtils.isNotBlank(utcDatetime)){
+            timestamp = Instant.parse(utcDatetime).toEpochMilli();
+        } else{
+            timestamp = Instant.now().toEpochMilli();
+        }
+        return this.getVersionOfObjectAtGivenTime(objectId,timestamp);
+    }
 
     /***
      * Function that get the object as it was the the time specified
      * Note: This function use the CORDRA REST API as this functionality is not provided in DOIP yet
      * @param objectId
      * @param datetimeEpoch datetime from when we want to retrieve the status of the digital object
-     * @return List of versions (digital objects) of a given object
+     * @return Version of the object at the given time
      * @throws DigitalObjectRepositoryException
      */
     public DigitalObject getVersionOfObjectAtGivenTime(String objectId, Long datetimeEpoch) throws DigitalObjectRepositoryException{
