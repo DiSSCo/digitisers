@@ -45,3 +45,7 @@ java -jar digitisers-1.0-jar-with-dependencies.jar -c <b>PATH_TO_CONFIGURATION_F
 occurrence data from GBIF. Add support for dwc-a obtained from IPT (https://ipt.gbif.org/) and from NHMUK (https://data.nhm.ac.uk/dataset/collection-specimens/)
 * Review fields used to populate the Digital Specimen's content from the DwC-a file (core vs verbatim, fields not clear, etc.) 
 * Review how to calculate MIDS level
+
+
+### Funding
+This code was created to demonstrate how to digitise specimen from DwC-A files, as part of the ICEDIG project https://icedig.eu/ ICEDIG a DiSSCo Project H2020-INFRADEV-2016-2017 – Grant Agreement No. 777483 Funded by the Horizon 2020 Framework Programme of the European Union

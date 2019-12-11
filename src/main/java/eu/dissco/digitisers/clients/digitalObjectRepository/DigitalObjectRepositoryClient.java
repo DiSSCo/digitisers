@@ -22,10 +22,7 @@ import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class DigitalObjectRepositoryClient implements AutoCloseable {
@@ -553,6 +550,7 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
             List<DigitalObject> listDigitalObjects = null;
             List<VersionInfo> versions = this.getRestClient().getVersionsFor(objectId);
             if (versions!=null && versions.size()>0){
+                versions.sort(Comparator.comparing(v -> v.publishedOn, Comparator.nullsLast(Long::compareTo)));
                 listDigitalObjects = new ArrayList<>();
                 DigitalObject previousVersion = null;
                 for (VersionInfo version:versions) {
@@ -605,6 +603,7 @@ public class DigitalObjectRepositoryClient implements AutoCloseable {
 
             if (versions!=null && versions.size()>0){
                 //The list of versions is sorted from the oldest to the most recent
+                versions.sort(Comparator.comparing(v -> v.publishedOn, Comparator.nullsLast(Long::compareTo)));
                 int versionPos=-1;
                 for (VersionInfo version:versions) {
                     if (version.publishedOn!=null && version.publishedOn>datetimeEpoch){
