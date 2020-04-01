@@ -29,7 +29,7 @@ public class CountryEnricher extends Enricher {
                         data = new HashMap<String, Object>();
                         data.put("country",country);
                     } else{
-                        this.getLogger().info("Country could't be resolved" + countryCode);
+                        this.getLogger().info("Country could't be resolved " + countryCode);
                     }
                 } else{
                     this.getLogger().info("Not enough information for enriching ds with country data " + DigitalSpecimenUtils.getStringPropertyFromDS(this.getDs(),"physicalSpecimenId"));

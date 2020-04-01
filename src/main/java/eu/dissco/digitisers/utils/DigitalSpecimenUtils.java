@@ -92,10 +92,13 @@ public class DigitalSpecimenUtils {
                 } else if (posibleInstitutions.size()>1){
                     //There are several institution with that institution code
                     //Check if all of them are from the same region
-                    String possibleRegion = posibleInstitutions.get(0).getAsJsonObject().getAsJsonObject("country").get("region").getAsString();
+                    String possibleRegion = "UNKNOWN";
+                    if (posibleInstitutions.get(0).getAsJsonObject().has("country")){
+                        possibleRegion = posibleInstitutions.get(0).getAsJsonObject().getAsJsonObject("country").get("region").getAsString();
+                    }
                     boolean sameRegion=true;
                     for (JsonElement posibleInstitution:posibleInstitutions) {
-                        if (!possibleRegion.equalsIgnoreCase(posibleInstitution.getAsJsonObject().getAsJsonObject("country").get("region").getAsString())){
+                        if (!posibleInstitution.getAsJsonObject().has("country") || !possibleRegion.equalsIgnoreCase(posibleInstitution.getAsJsonObject().getAsJsonObject("country").get("region").getAsString())){
                             sameRegion=false;
                             break;
                         }

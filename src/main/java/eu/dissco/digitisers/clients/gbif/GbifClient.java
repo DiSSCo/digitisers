@@ -377,9 +377,9 @@ public class GbifClient {
     private JsonObject getInstitutionCountryInfo(JsonObject institutionInfo){
         JsonObject countryInfo = null;
         String institutionCountry = null;
-        if (institutionInfo.getAsJsonObject().has("address")){
+        if (institutionInfo.getAsJsonObject().has("address") && institutionInfo.getAsJsonObject().getAsJsonObject("address").has("country")){
             institutionCountry = institutionInfo.getAsJsonObject().getAsJsonObject("address").get("country").getAsString();
-        } else if (institutionInfo.getAsJsonObject().has("mailingAddress")){
+        } else if (institutionInfo.getAsJsonObject().has("mailingAddress") && institutionInfo.getAsJsonObject().getAsJsonObject("mailingAddress").has("country")){
             institutionCountry = institutionInfo.getAsJsonObject().getAsJsonObject("mailingAddress").get("country").getAsString();
         } else if (institutionInfo.getAsJsonObject().has("homepage")){
             try{
