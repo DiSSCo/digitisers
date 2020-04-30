@@ -1,5 +1,6 @@
 package eu.dissco.digitisers;
 
+import com.google.common.io.Resources;
 import eu.dissco.digitisers.utils.EmailUtils;
 import eu.dissco.digitisers.utils.FileUtils;
 import org.apache.commons.configuration2.Configuration;
@@ -83,7 +84,8 @@ public abstract class Digitiser {
 
         List<String> emailAddresses = this.getConfig().getList(String.class,"digitiser.sendDigitisationResultsByEmailTo");
         if (emailAddresses.size()>0){
-            EmailUtils.sendResultDigitiserExecution(digitisationStartDateTime,digitisationEndDateTime,emailAddresses);
+            EmailUtils emailUtils = new EmailUtils(this.getConfig());
+            emailUtils.sendResultDigitiserExecution(digitisationStartDateTime,digitisationEndDateTime,emailAddresses);
         }
     }
 

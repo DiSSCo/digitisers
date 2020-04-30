@@ -21,7 +21,7 @@ import java.util.UUID;
 
 import static org.junit.Assert.*;
 
-@Ignore
+@Ignore("Tests are ignored as they need setting up the configuration file")
 public class DigitalObjectRepositoryClientTest {
 
     private final static Logger logger = LoggerFactory.getLogger(DigitalObjectRepositoryClientTest.class);

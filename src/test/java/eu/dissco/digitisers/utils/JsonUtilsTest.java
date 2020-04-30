@@ -1,16 +1,11 @@
 package eu.dissco.digitisers.utils;
 
-import com.google.common.collect.ConcurrentHashMultiset;
 import com.google.common.collect.MapDifference;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 
 import static org.junit.Assert.*;
 

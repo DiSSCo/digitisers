@@ -1,5 +1,9 @@
 package eu.dissco.digitisers.utils;
 
+import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.ConfigurationConverter;
+import org.apache.commons.configuration2.PropertiesConfiguration;
+import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.simplejavamail.email.Email;
 import org.simplejavamail.email.EmailBuilder;
 import org.simplejavamail.email.EmailPopulatingBuilder;
@@ -12,9 +16,7 @@ import org.slf4j.LoggerFactory;
 import javax.activation.FileDataSource;
 import java.io.File;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 public class EmailUtils {
 
@@ -23,7 +25,18 @@ public class EmailUtils {
     /**************/
 
     private final static Logger logger = LoggerFactory.getLogger(LogUtils.class);
+    private Properties emailConfigurationProperties;
 
+    public EmailUtils(Configuration config){
+        PropertiesConfiguration emailConfig = new PropertiesConfiguration();
+        Iterator<String> keys = config.getKeys("simplejavamail");
+        while(keys.hasNext()){
+            String key = keys.next();
+            Object value = config.getProperty(key);
+            emailConfig.addProperty(key,value);
+        }
+        this.emailConfigurationProperties = ConfigurationConverter.getProperties(emailConfig);
+    }
 
     /******************/
     /* PUBLIC METHODS */
@@ -37,7 +50,7 @@ public class EmailUtils {
      * @param emailAddresses List of email addresses to send the email
      * @return true if the email was sent correctly, false otherwise
      */
-    public static boolean sendResultDigitiserExecution(LocalDateTime startDateTime, LocalDateTime endDateTime, List<String> emailAddresses) {
+    public boolean sendResultDigitiserExecution(LocalDateTime startDateTime, LocalDateTime endDateTime, List<String> emailAddresses) {
         boolean emailSent = false;
         try {
             if (emailAddresses!=null && emailAddresses.size()>0) {
@@ -69,7 +82,7 @@ public class EmailUtils {
                         "DiSSCo.eu";
 
                 //Send email
-                emailSent = EmailUtils.sendEmail(emailAddresses, emailSubject, emailBody, attachments);
+                emailSent = this.sendEmail(emailAddresses, emailSubject, emailBody, attachments);
                 if (!emailSent) logger.warn("Email was not sent");
             }
         } catch (Exception e) {
@@ -86,12 +99,11 @@ public class EmailUtils {
      * @param attachedFiles attached files
      * @return true if the email was sent correctly, false otherwise
      */
-    public static boolean sendEmail(List<String> emailAddresses, String subject, String body, List<File> attachedFiles){
+    public boolean sendEmail(List<String> emailAddresses, String subject, String body, List<File> attachedFiles){
         boolean emailSent = false;
         try{
             if (emailAddresses!=null && emailAddresses.size()>0){
-                //Load mail config from properties files
-                ConfigLoader.loadProperties("simplejavamail.properties",true);
+                ConfigLoader.loadProperties(this.emailConfigurationProperties,true);
 
                 //Get mailer (currently using properties loaded by ConfigLoader)
                 Mailer mailer = MailerBuilder

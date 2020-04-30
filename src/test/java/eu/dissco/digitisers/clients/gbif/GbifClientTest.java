@@ -1,13 +1,15 @@
 package eu.dissco.digitisers.clients.gbif;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import eu.dissco.digitisers.utils.FileUtils;
 import eu.dissco.digitisers.utils.JsonUtils;
 import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.PropertiesConfiguration;
+import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,8 +26,14 @@ public class GbifClientTest {
 
     @BeforeClass
     public static void setup() throws Exception {
-        Configuration config = FileUtils.loadConfigurationFromResourceFile("config.properties");
-        GbifInfo gbifInfo =  GbifInfo.getGbifInfoFromConfig(config);
+        GbifInfo gbifInfo;
+        try {
+            Configuration config = FileUtils.loadConfigurationFromResourceFile("config.properties");
+            gbifInfo =  GbifInfo.getGbifInfoFromConfig(config);
+        } catch (Exception ex){
+            gbifInfo = new GbifInfo("","");
+        }
+
         gbifClient = GbifClient.getInstance(gbifInfo);
     }
 
@@ -72,6 +80,7 @@ public class GbifClientTest {
         assertNull("The taxon shouldn't exist ", taxonId);
     }
 
+    @Ignore("Test is ignored as it needs setting up the configuration file")
     @Test
     public void downloadOccurrencesByCanonicalNameAndKingdom() throws Exception {
         String canonicalName = "Agathis montana";
@@ -80,6 +89,7 @@ public class GbifClientTest {
         assertNotNull("The file should be downloaded correctly ", dwcaFile);
     }
 
+    @Ignore("Test is ignored as it needs setting up the configuration file")
     @Test
     public void downloadOccurrencesByTaxonId() throws Exception {
         String taxonId = "2685009";

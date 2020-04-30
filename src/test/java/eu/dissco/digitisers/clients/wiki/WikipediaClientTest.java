@@ -30,7 +30,8 @@ public class WikipediaClientTest {
         String canonicalName="Agathis montana";
         String kingdom="Plantae";
         JsonObject wikiInfo = wikiClient.getWikiInformation(canonicalName,kingdom);
-        assertEquals("The wiki page ulr should be ", "https://en.wikipedia.org/wiki/Agathis_montana",wikiInfo.get("fullurl").getAsString());
+        System.out.println("quevedo " + wikiInfo.toString());
+        assertEquals("The wiki page url should be ", "https://en.wikipedia.org/wiki/Agathis_montana",wikiClient.getPageURL(wikiInfo));
     }
 
     @Test

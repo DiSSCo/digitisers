@@ -1,6 +1,7 @@
 package eu.dissco.digitisers.clients.wiki;
 
 import com.google.gson.JsonObject;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,18 +85,17 @@ public abstract class WikiClient {
      * @return
      */
     public static WikiClient getInstance(String type) throws Exception {
-        if (instance==null){
-            switch (type){
-                case "wikipedia":
-                    instance = new WikipediaClient();
-                    break;
-                case "wikidata":
-                    instance = new WikiDataClient();
-                    break;
-                default:
-                    throw new Exception("Type of wiki not suported");
-            }
+        switch (type){
+            case "wikipedia":
+                if (instance==null || !StringUtils.equals(instance.getClass().getSimpleName(),"WikipediaClient")) instance = new WikipediaClient();
+                break;
+            case "wikidata":
+                if (instance==null || !StringUtils.equals(instance.getClass().getSimpleName(),"WikiDataClient")) instance = new WikiDataClient();
+                break;
+            default:
+                throw new Exception("Type of wiki not suported");
         }
+
         return instance;
     }
 }

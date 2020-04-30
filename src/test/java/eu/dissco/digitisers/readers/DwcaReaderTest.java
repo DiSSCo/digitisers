@@ -49,19 +49,11 @@ public class DwcaReaderTest {
 
     @Test(expected = Test.None.class /* no exception expected */)
     public void testParseContentDwcaToDigitalSpecimens_small() throws Exception {
-        String dwcaFilePath = "GBIF_DwC-a/small/0022116-190918142434337_Profundiconus_profundorum.zip";
+        String dwcaFilePath = "GBIF_DwC-a/small/0031773-190918142434337_Agathis_montana.zip";
         File dwcaFile = new File(Resources.getResource(dwcaFilePath).toURI());
 
         DwcaReader dwcaReader = new DwcaReader();
         dwcaReader.readDigitalSpecimensFromDwcaFile(dwcaFile,digitalObjectVisitor);
     }
 
-    @Test(expected = Test.None.class /* no exception expected */)
-    public void testParseContentDwcaToDigitalSpecimens_big() throws Exception {
-        String dwcaFilePath = "GBIF_DwC-a/big/0029199-190918142434337_Canis_lupus.zip";
-        File dwcaFile = new File(Resources.getResource(dwcaFilePath).toURI());
-
-        DwcaReader dwcaReader = new DwcaReader();
-        dwcaReader.readDigitalSpecimensFromDwcaFile(dwcaFile,digitalObjectVisitor);
-    }
 }

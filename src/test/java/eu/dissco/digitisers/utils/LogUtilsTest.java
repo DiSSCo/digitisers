@@ -15,15 +15,23 @@ public class LogUtilsTest {
     private final static Logger logger = LoggerFactory.getLogger(JsonUtilsTest.class);
 
     @Test
-    public void getLogEntriesBetweenDateRange() throws IOException {
+    public void getLogEntriesBetweenDateRange() throws IOException, InterruptedException {
         logger.info("message 1 shouldn't be returned in the filter");
+        Thread.sleep(100);
+
         LocalDateTime startDateTime = LocalDateTime.now();
         logger.info("message 2 should be returned in the filter");
+        Thread.sleep(100);
         logger.info("message 3 should be returned in the filter");
+        Thread.sleep(100);
         LocalDateTime endDateTime= LocalDateTime.now();
+
+        Thread.sleep(100);
+
         logger.info("message 4 shouldn't be returned in the filter");
+        Thread.sleep(100);
 
         List<String> logEntries = LogUtils.getLogEntriesBetweenDateRange(startDateTime,endDateTime);
-        assertEquals("Number of log entries should be 3", 3, logEntries.size());
+        assertEquals("Number of log entries should be 2", 2, logEntries.size());
     }
 }

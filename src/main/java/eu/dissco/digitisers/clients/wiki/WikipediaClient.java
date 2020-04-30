@@ -73,7 +73,7 @@ public class WikipediaClient extends WikiClient {
     @Override
     public String getPageURL(JsonObject wikiInfo){
         String pageUrl = null;
-        if (wikiInfo!=null){
+        if (wikiInfo!=null && wikiInfo.has("fullurl")){
             pageUrl = wikiInfo.get("fullurl").getAsString();
         }
         return pageUrl;

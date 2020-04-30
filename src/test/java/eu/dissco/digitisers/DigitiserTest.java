@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-@Ignore
+@Ignore("Tests are ignored as they need setting up the configuration file")
 public class DigitiserTest {
 
     private final static Logger logger = LoggerFactory.getLogger(DwcaDigitiserTest.class);
@@ -35,20 +35,6 @@ public class DigitiserTest {
         String digitiserMethod="dwca";
         String configPropertiesFilePath = Resources.getResource("config.properties").getPath();
         String dwcaFilePath = "GBIF_DwC-a/small/0034622-190918142434337_Pygmaepterys_pointieri.zip";
-        List<String> commandLineArgs = new ArrayList<String>(Arrays.asList(
-                "-m", digitiserMethod,
-                "-c", configPropertiesFilePath,
-                "-f", Resources.getResource(dwcaFilePath).getPath()
-        ));
-        Digitiser digitiser = DigitiserFactory.getDigitiser(commandLineArgs);
-        digitiser.digitise(commandLineArgs);
-    }
-
-    @Test(expected = Test.None.class /* no exception expected */)
-    public void testStartDigitisationDwcaByFile_big() throws Exception{
-        String digitiserMethod="dwca";
-        String configPropertiesFilePath = Resources.getResource("config.properties").getPath();
-        String dwcaFilePath = "GBIF_DwC-a/big/0029199-190918142434337_Canis_lupus.zip";
         List<String> commandLineArgs = new ArrayList<String>(Arrays.asList(
                 "-m", digitiserMethod,
                 "-c", configPropertiesFilePath,

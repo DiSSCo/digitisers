@@ -5,7 +5,7 @@ import org.junit.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@Ignore
+@Ignore("Tests are ignored as they need setting up the configuration file")
 public class GbifDigitiserTest {
 
     private final static Logger logger = LoggerFactory.getLogger(GbifDigitiserTest.class);

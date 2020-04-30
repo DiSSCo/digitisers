@@ -30,7 +30,7 @@ public class WikiDataClientTest {
         String canonicalName="Profundiconus profundorum";
         String kingdom="Animalia";
         JsonObject wikiInfo = wikiClient.getWikiInformation(canonicalName,kingdom);
-        assertEquals("The wiki page ulr should be ", "http://www.wikidata.org/entity/Q60452413",wikiInfo.get("wikidataPageURL").getAsString());
+        assertEquals("The wiki page ulr should be ", "http://www.wikidata.org/entity/Q60452413",wikiClient.getPageURL(wikiInfo));
     }
 
     @Test
@@ -38,11 +38,11 @@ public class WikiDataClientTest {
         String canonicalName="Agathis montana";
         String kingdom="Plantae";
         JsonObject wikiInfoInPlants = wikiClient.getWikiInformation(canonicalName,kingdom);
-        assertEquals("The wiki page ulr should be ", "http://www.wikidata.org/entity/Q2599422",wikiInfoInPlants.get("wikidataPageURL").getAsString());
+        assertEquals("The wiki page ulr should be ", "http://www.wikidata.org/entity/Q2599422",wikiClient.getPageURL(wikiInfoInPlants));
 
         kingdom="Animalia";
         JsonObject wikiInfoInAnimals = wikiClient.getWikiInformation(canonicalName,kingdom);
-        assertEquals("The wiki page ulr should be ", "http://www.wikidata.org/entity/Q17405678",wikiInfoInAnimals.get("wikidataPageURL").getAsString());
+        assertEquals("The wiki page ulr should be ", "http://www.wikidata.org/entity/Q17405678",wikiClient.getPageURL(wikiInfoInAnimals));
     }
 
     @Test

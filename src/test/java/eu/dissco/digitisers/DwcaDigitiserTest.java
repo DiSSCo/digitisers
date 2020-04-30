@@ -11,7 +11,7 @@ import java.util.List;
 
 import static org.junit.Assert.*;
 
-@Ignore
+@Ignore("Tests are ignored as they need setting up the configuration file")
 public class DwcaDigitiserTest {
 
     private final static Logger logger = LoggerFactory.getLogger(DwcaDigitiserTest.class);
@@ -40,12 +40,6 @@ public class DwcaDigitiserTest {
     @Test(expected = Test.None.class /* no exception expected */)
     public void testImportDwcaFileToDigitalSpecimens_file_small() throws Exception{
         String dwcaFilePath = Resources.getResource("GBIF_DwC-a/small/0022116-190918142434337_Profundiconus_profundorum.zip").getPath();
-        digitiser.digitiseDigitalSpecimensFromDwcaFile(dwcaFilePath);
-    }
-
-    @Test(expected = Test.None.class /* no exception expected */)
-    public void testImportDwcaFileToDigitalSpecimens_file_big() throws Exception{
-        String dwcaFilePath = Resources.getResource("GBIF_DwC-a/big/0029199-190918142434337_Canis_lupus.zip").getPath();
         digitiser.digitiseDigitalSpecimensFromDwcaFile(dwcaFilePath);
     }
 

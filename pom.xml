@@ -46,7 +46,7 @@
         <dependency>
             <groupId>org.gbif</groupId>
             <artifactId>dwca-io</artifactId>
-            <version>2.7-SNAPSHOT</version>
+            <version>2.7</version>
         </dependency>
 
         <!-- Gbif API library -->
