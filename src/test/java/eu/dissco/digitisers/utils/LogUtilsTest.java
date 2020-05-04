@@ -1,5 +1,6 @@
 package eu.dissco.digitisers.utils;
 
+import org.junit.Ignore;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +15,7 @@ public class LogUtilsTest {
 
     private final static Logger logger = LoggerFactory.getLogger(JsonUtilsTest.class);
 
+    @Ignore
     @Test
     public void getLogEntriesBetweenDateRange() throws IOException, InterruptedException {
         logger.info("message 1 shouldn't be returned in the filter");

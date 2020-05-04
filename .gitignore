@@ -42,3 +42,7 @@ config.properties
 *.iml
 nbProject
 .project
+
+
+#Don't ignore small sample dwc-a files
+!/src/test/resources/GBIF_DwC-a/small/*.zip
