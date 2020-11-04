@@ -32,7 +32,7 @@ public class EbiEnricher extends Enricher {
                 if (StringUtils.isNotBlank(institutionCode) && StringUtils.isNotBlank(collectionCode) && StringUtils.isNotBlank(catalogNumber)){
                     EbiClient ebiClient = EbiClient.getInstance();
                     String searchTermWithSpaces = String.join(" ", Arrays.asList(institutionCode,collectionCode,catalogNumber));
-                    String searchTermWithColons = String.join(" ", Arrays.asList(institutionCode,collectionCode,catalogNumber));
+                    String searchTermWithColons = String.join(":", Arrays.asList(institutionCode,collectionCode,catalogNumber));
                     JsonArray ebiResults = ebiClient.rootSearchAsJson(searchTermWithSpaces,true);
                     ebiResults.addAll(ebiClient.rootSearchAsJson(searchTermWithColons,true));
                     data = new HashMap<String, Object>();
