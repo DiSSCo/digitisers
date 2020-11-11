@@ -52,6 +52,9 @@ public class DigitiserFactory {
                 case "gbif":
                     digitiser = new GbifDigitiser(configPropertiesFilePath);
                     break;
+                case "bh2020":
+                    digitiser = new Bh2020Digitiser(configPropertiesFilePath);
+                    break;
                 default:
                     throw new ParseException("Digitisation method not supported");
             }

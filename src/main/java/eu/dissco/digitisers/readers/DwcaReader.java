@@ -23,7 +23,6 @@ import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class DwcaReader{
 
@@ -113,7 +112,7 @@ public class DwcaReader{
      * @param rec Record in the darwin core file to check if it can be parsed into a Digital specimen
      * @return true if darwin core record can be parsed, false otherwise
      */
-    private boolean checkIfDwcaRecordCanBeParsedAsDigitalSpecimen(StarRecord rec){
+    protected boolean checkIfDwcaRecordCanBeParsedAsDigitalSpecimen(StarRecord rec){
         //Check if the dwca record is for a specimen (living, preserved or fossil) and it has enough information to populate a Digital Specimen object
         String basisOfRecord=this.getValueFromDwcaRecord(rec,DwcTerm.basisOfRecord);
         String scientificName=this.getValueFromDwcaRecord(rec,GbifTerm.acceptedScientificName);
@@ -142,7 +141,7 @@ public class DwcaReader{
      * @param rec Darwin core record
      * @return jsonObject with information obtained from the darwin core record
      */
-    private JsonObject getDigitalSpecimenContentFromDwcaRecord(StarRecord rec){
+    protected JsonObject getDigitalSpecimenContentFromDwcaRecord(StarRecord rec){
         JsonObject dsContent = new JsonObject();
 
         //physicalSpecimenId
@@ -257,7 +256,7 @@ public class DwcaReader{
      * @param logResults
      * @return
      */
-    private String getPhysicalSpecimenId(StarRecord rec, boolean logResults){
+    protected String getPhysicalSpecimenId(StarRecord rec, boolean logResults){
         String physicalSpecimenId=null;
         String identifier = this.getValueFromDwcaRecord(rec,DcTerm.identifier);
         String occurrenceID = this.getValueFromDwcaRecord(rec,DwcTerm.occurrenceID);
@@ -293,7 +292,7 @@ public class DwcaReader{
      * @param rec Darwin core record to be serialized into a json object
      * @return Json object resulting of the serialization of the darwin core record
      */
-    private JsonObject getDarwinCoreRecordAsJsonObject(StarRecord rec){
+    protected JsonObject getDarwinCoreRecordAsJsonObject(StarRecord rec){
         JsonObject recContentJsonObj = new JsonObject();
 
         //Load information from core
@@ -345,7 +344,7 @@ public class DwcaReader{
      * @return Value, as string, of the term in the darwin core record, when the term is found and it is not empty, or
      * it returns null otherwise
      */
-    private String getValueFromDwcaRecord(StarRecord rec, Term term){
+    protected String getValueFromDwcaRecord(StarRecord rec, Term term){
         String valueInDwca=null;
         String valueInCore = rec.core().value(term);
         String source = null;
@@ -373,7 +372,7 @@ public class DwcaReader{
      * @param property name of the property to be added
      * @param value value of the property to be added
      */
-    private void addPropertyToJsonObject(JsonObject dsContent,String property, String value){
+    protected void addPropertyToJsonObject(JsonObject dsContent,String property, String value){
         if(StringUtils.isNotBlank(value)){
             //Only add to the json object properties that their values are not empty
             dsContent.addProperty(property,value);

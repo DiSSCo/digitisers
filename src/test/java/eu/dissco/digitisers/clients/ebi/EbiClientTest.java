@@ -10,6 +10,7 @@ import org.junit.rules.ExpectedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.Assert.*;
@@ -48,6 +49,35 @@ public class EbiClientTest {
         String domain="nucleotideSequences";
         String specimenKey="MNHN IM 2013-7767";
         JsonArray ebiResults = ebiClient.domainSearchAsJson(domain,specimenKey,true);
+
+        assertTrue("The number of results should be greater or equals than 1 ", ebiResults.size()>=1);
+
+        logger.info(JsonUtils.serializeObject(ebiResults));
+    }
+
+    @Test
+    public void intermediateDomainSearch_specificField() throws ApiException {
+        String domain="nucleotideSequences";
+        String query="acc:AF102391";
+        JsonArray ebiResults = ebiClient.domainSearchAsJson(domain,query);
+
+        assertTrue("The number of results should be greater or equals than 1 ", ebiResults.size()>=1);
+
+        logger.info(JsonUtils.serializeObject(ebiResults));
+    }
+
+    @Test
+    public void intermediateDomainSearch_multiple_specificField() throws ApiException {
+        String domain="nucleotideSequences";
+        List<String> accessionIds = new ArrayList();
+        accessionIds.add("AY548805");
+        accessionIds.add("EF081392");
+
+        JsonArray ebiResults = new JsonArray();
+        for (String accessionId:accessionIds) {
+            String query = "acc:" + accessionId;
+            ebiResults.addAll(ebiClient.domainSearchAsJson(domain,query));
+        }
 
         assertTrue("The number of results should be greater or equals than 1 ", ebiResults.size()>=1);
 

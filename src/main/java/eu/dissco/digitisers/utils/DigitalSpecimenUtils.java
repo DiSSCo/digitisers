@@ -165,7 +165,7 @@ public class DigitalSpecimenUtils {
     }
 
     /**
-     * Funtcion that get the value of the property received as parameter from the content of the digital specimen
+     * Function that get the value of the property received as parameter from the content of the digital specimen
      * @param ds Digital specimen
      * @param property Property to obtain its value
      * @return JsonElement with the value of the property or null if property is not found
@@ -177,6 +177,18 @@ public class DigitalSpecimenUtils {
             jsonElement = jsonContent.get(property);
         }
         return jsonElement;
+    }
+
+    /**
+     * Function that remove the property received as parameter from the content of the digital specimen
+     * @param ds Digital specimen
+     * @param property Property to remove
+     */
+    public static void removePropertyFromDS(DigitalObject ds, String property) {
+        JsonObject jsonContent = ds.attributes.getAsJsonObject("content");
+        if (jsonContent.has(property)) {
+            jsonContent.remove(property);
+        }
     }
 
     /**

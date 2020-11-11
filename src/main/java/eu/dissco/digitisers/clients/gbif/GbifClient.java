@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.net.URLEncoder;
 import java.util.Base64;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -36,6 +37,7 @@ public class GbifClient {
     private Map<String,Optional<JsonArray>> mapInstitutionsInfoByCode; //Map to improve efficiency of this class
     private Map<String,Optional<JsonObject>> mapInstitutionInfoById; //Map to improve efficiency of this class
     private Map<String,Optional<JsonObject>> mapCollectionInfoByInstitutionIdAndCollectionName; //Map to improve efficiency of this class
+    private Map<String,Optional<String>> mapOccurrenceIdByGbifId; //Map to improve efficiency of this class
 
 
     /***********************/
@@ -102,6 +104,13 @@ public class GbifClient {
         this.mapCollectionInfoByInstitutionIdAndCollectionName = mapCollectionInfoByInstitutionIdAndCollectionName;
     }
 
+    public Map<String, Optional<String>> getMapOccurrenceIdByGbifId() {
+        return mapOccurrenceIdByGbifId;
+    }
+
+    public void setMapOccurrenceIdByGbifIde(Map<String, Optional<String>> mapOccurrenceIdByGbifId) {
+        this.mapOccurrenceIdByGbifId = mapOccurrenceIdByGbifId;
+    }
 
     /****************/
     /* CONSTRUCTORS */
@@ -118,6 +127,7 @@ public class GbifClient {
         this.mapInstitutionsInfoByCode = new ConcurrentHashMap<String, Optional<JsonArray>>();
         this.mapInstitutionInfoById = new ConcurrentHashMap<String, Optional<JsonObject>>();
         this.mapCollectionInfoByInstitutionIdAndCollectionName = new ConcurrentHashMap<String, Optional<JsonObject>>();
+        this.mapOccurrenceIdByGbifId = new ConcurrentHashMap<String, Optional<String>>();
     }
 
 
@@ -179,10 +189,10 @@ public class GbifClient {
     }
 
     /**
-     * Function to get the taxon concept information holds in GBIF by canonicalName and kingdom
+     * Function to get the taxon id holds in GBIF by canonicalName and kingdom
      * @param canonicalName canonical name of the taxon concept we want to obtain its info
      * @param kingdom name of the kingdom the taxon concept belongs to
-     * @return json object with the taxon concept information if its found in GBIF, or null otherwise
+     * @return taxonId if its found in GBIF, or null otherwise
      * @throws Exception
      */
     public String getTaxonIdByCanonicalNameAndKingdom(String canonicalName, String kingdom) throws Exception {
@@ -192,13 +202,33 @@ public class GbifClient {
         } else{
             String scientificNameEncoded = URLEncoder.encode(canonicalName, "UTF-8");
             String kingdomEncoded = URLEncoder.encode(kingdom, "UTF-8");
-            JsonObject searchResult = (JsonObject) NetUtils.doGetRequestJson(this.getApiUrl()+"/species/match?name="+scientificNameEncoded+"&kingdom="+kingdomEncoded);
+                JsonObject searchResult = (JsonObject) NetUtils.doGetRequestJson(this.getApiUrl()+"/species/match?name="+scientificNameEncoded+"&kingdom="+kingdomEncoded);
             if (searchResult!=null && searchResult.has("usageKey") && canonicalName.equalsIgnoreCase(searchResult.get("canonicalName").getAsString())){
                 taxonId=searchResult.get("usageKey").getAsString();
             }
             this.getMapTaxonIdByCanonicalNameAndKingdom().put(canonicalName+"#"+kingdom,Optional.ofNullable(taxonId));
         }
         return taxonId;
+    }
+
+    /**
+     * Function to get the occurrenceId holds in GBIF by a gbifId code
+     * @param gbifId gbifId
+     * @return json object with the taxon concept information if its found in GBIF, or null otherwise
+     * @throws Exception
+     */
+    public String getOccurrenceIdByGbifId(String gbifId) throws Exception {
+        String occurrenceId = null;
+        if (this.getMapOccurrenceIdByGbifId().containsKey(gbifId)){
+            occurrenceId = this.getMapOccurrenceIdByGbifId().get(gbifId).orElse(null);
+        } else{
+            JsonObject searchResult = (JsonObject) NetUtils.doGetRequestJson(this.getApiUrl()+"/occurrence/"+gbifId);
+            if (searchResult!=null && searchResult.has("occurrenceID")){
+                occurrenceId=searchResult.get("occurrenceID").getAsString();
+            }
+            this.getMapOccurrenceIdByGbifId().put(gbifId,Optional.ofNullable(occurrenceId));
+        }
+        return occurrenceId;
     }
 
     /**
@@ -223,10 +253,66 @@ public class GbifClient {
         File dwcaFile = null;
         String auth = "Basic " + Base64.getEncoder().encodeToString((this.getGbifInfo().getUsername()+":"+this.getGbifInfo().getPassword()).getBytes());
 
+        JsonObject newTaxonPredicate = new JsonObject();
+        newTaxonPredicate.addProperty("type","equals");
+        newTaxonPredicate.addProperty("key","TAXON_KEY");
+        newTaxonPredicate.addProperty("value",taxonId);
+
         //Request download occurrences
         JsonObject downloadQuery = (JsonObject) FileUtils.loadJsonElementFromResourceFile("gbifFilterSpecimenOccurrenceDownloadPredicate.json");
-        JsonObject taxonKeyPredicate = downloadQuery.getAsJsonObject("predicate").getAsJsonArray("predicates").get(0).getAsJsonObject();
-        taxonKeyPredicate.addProperty("value",taxonId);
+        JsonArray predicates = downloadQuery.getAsJsonObject("predicate").getAsJsonArray("predicates");
+        predicates.add(newTaxonPredicate);
+
+        JsonElement result = NetUtils.doPostRequestJson(this.getApiUrl()+"/occurrence/download/request",auth,downloadQuery);
+
+        String downloadKey=result.getAsString();
+        boolean downloadBeingProcessed = true;
+        String downloadLink=null;
+        int i = 0;
+        int sleepSeconds = 30;
+        while (downloadBeingProcessed){
+            JsonObject downloadInfo = (JsonObject) NetUtils.doGetRequestJson(this.getApiUrl()+"/occurrence/download/"+downloadKey,auth);
+            String status = downloadInfo.get("status").getAsString();
+            if (i==60 || status.equalsIgnoreCase("SUCCEEDED")){
+                downloadBeingProcessed=false;
+                downloadLink=downloadInfo.get("downloadLink").getAsString();
+                dwcaFile = NetUtils.downloadFile(downloadLink);
+            } else{
+                Thread.sleep(sleepSeconds * 1000);
+            }
+            i++;
+        }
+
+        return dwcaFile;
+    }
+
+    /**
+     * Function that download all the specimens (preserved, living and fossils) for a given taxon concept
+     * @param occurrenceIds list with the occurence ids of the specimens to download from GBIF
+     * @return Dwca file with the specimen data obtained from GBIF
+     * @throws Exception
+     */
+    public File downloadOccurrencesByListOccurrenceIds(List<String> occurrenceIds) throws Exception {
+        File dwcaFile = null;
+        String auth = "Basic " + Base64.getEncoder().encodeToString((this.getGbifInfo().getUsername()+":"+this.getGbifInfo().getPassword()).getBytes());
+
+        JsonArray occurrencePredicates = new JsonArray();
+        for (String occurrenceId:occurrenceIds) {
+            JsonObject newOccurrencePredicate = new JsonObject();
+            newOccurrencePredicate.addProperty("type","equals");
+            newOccurrencePredicate.addProperty("key","OCCURRENCE_ID");
+            newOccurrencePredicate.addProperty("value",occurrenceId);
+            occurrencePredicates.add(newOccurrencePredicate);
+        }
+
+        //Request download occurrences
+        JsonObject downloadQuery = (JsonObject) FileUtils.loadJsonElementFromResourceFile("gbifFilterSpecimenOccurrenceDownloadPredicate.json");
+        JsonArray predicates = downloadQuery.getAsJsonObject("predicate").getAsJsonArray("predicates");
+        JsonObject newPredicate = new JsonObject();
+        newPredicate.addProperty("type","or");
+        newPredicate.add("predicates",occurrencePredicates);
+        predicates.add(newPredicate);
+
         JsonElement result = NetUtils.doPostRequestJson(this.getApiUrl()+"/occurrence/download/request",auth,downloadQuery);
 
         String downloadKey=result.getAsString();

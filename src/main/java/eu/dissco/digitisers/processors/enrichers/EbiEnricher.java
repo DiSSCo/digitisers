@@ -24,21 +24,41 @@ public class EbiEnricher extends Enricher {
     protected Map<String, Object> enrichData() {
         Map<String,Object> data=null;
         try{
-            String institutionCode = DigitalSpecimenUtils.getTermFromDsDwcaJson(this.getDs(), DwcTerm.institutionCode);
-            String collectionCode = DigitalSpecimenUtils.getTermFromDsDwcaJson(this.getDs(),DwcTerm.collectionCode);
-            String catalogNumber = DigitalSpecimenUtils.getTermFromDsDwcaJson(this.getDs(), DwcTerm.catalogNumber);
-            JsonElement ebiSearchResults =  DigitalSpecimenUtils.getPropertyFromDS(this.getDs(),"ebiSearchResults");
+            JsonElement ebiSearchResults = DigitalSpecimenUtils.getPropertyFromDS(this.getDs(),"ebiSearchResults");
             if (ebiSearchResults==null){
-                if (StringUtils.isNotBlank(institutionCode) && StringUtils.isNotBlank(collectionCode) && StringUtils.isNotBlank(catalogNumber)){
-                    EbiClient ebiClient = EbiClient.getInstance();
-                    String searchTermWithSpaces = String.join(" ", Arrays.asList(institutionCode,collectionCode,catalogNumber));
-                    String searchTermWithColons = String.join(":", Arrays.asList(institutionCode,collectionCode,catalogNumber));
-                    JsonArray ebiResults = ebiClient.rootSearchAsJson(searchTermWithSpaces,true);
-                    ebiResults.addAll(ebiClient.rootSearchAsJson(searchTermWithColons,true));
+                EbiClient ebiClient = EbiClient.getInstance();
+                JsonArray ebiResults = new JsonArray();
+
+                JsonElement bh2020MappingsObj = DigitalSpecimenUtils.getPropertyFromDS(this.getDs(),"bh2020Mappings");
+                if (bh2020MappingsObj!=null) {
+                    //Mappings with ENA samples are provided in DS object, so we query EBI to obtain directly information of those accession Ids
+                    //This can be the case when we use the tool built during the BioHackathon 2020 in the project 33
+                    JsonArray enaIdsObj = bh2020MappingsObj.getAsJsonObject().get("enaIds").getAsJsonArray();
+                    for (JsonElement enaIdObj : enaIdsObj) {
+                        String domain = "nucleotideSequences";
+                        String query = "acc:" + enaIdObj.getAsString();
+                        this.getLogger().info("Enriching ds physicalSpecimenId=" + DigitalSpecimenUtils.getStringPropertyFromDS(this.getDs(), "physicalSpecimenId") + " with EBI data " + query);
+                        ebiResults.addAll(ebiClient.domainSearchAsJson(domain,query));
+                    }
                     data = new HashMap<String, Object>();
-                    data.put("ebiSearchResults",ebiResults);
+                    data.put("ebiSearchResults", ebiResults);
+                    DigitalSpecimenUtils.removePropertyFromDS(this.getDs(),"bh2020Mappings");
                 } else{
-                    this.getLogger().info("Not enough information for enriching ds with EBI data " + DigitalSpecimenUtils.getStringPropertyFromDS(this.getDs(),"physicalSpecimenId"));
+                    //Mappings are not provided, so we will try to perform a search for entries related to the given specimen using
+                    //the triplet institutionCode:collectionCode:catalogNumber
+                    String institutionCode = DigitalSpecimenUtils.getTermFromDsDwcaJson(this.getDs(), DwcTerm.institutionCode);
+                    String collectionCode = DigitalSpecimenUtils.getTermFromDsDwcaJson(this.getDs(),DwcTerm.collectionCode);
+                    String catalogNumber = DigitalSpecimenUtils.getTermFromDsDwcaJson(this.getDs(), DwcTerm.catalogNumber);
+                    if (StringUtils.isNotBlank(institutionCode) && StringUtils.isNotBlank(collectionCode) && StringUtils.isNotBlank(catalogNumber)) {
+                        String searchTermWithSpaces = String.join(" ", Arrays.asList(institutionCode, collectionCode, catalogNumber));
+                        String searchTermWithColons = String.join(":", Arrays.asList(institutionCode, collectionCode, catalogNumber));
+                        ebiResults.addAll(ebiClient.rootSearchAsJson(searchTermWithSpaces, true));
+                        ebiResults.addAll(ebiClient.rootSearchAsJson(searchTermWithColons, true));
+                        data = new HashMap<String, Object>();
+                        data.put("ebiSearchResults", ebiResults);
+                    } else {
+                        this.getLogger().info("Not enough information for enriching ds with EBI data " + DigitalSpecimenUtils.getStringPropertyFromDS(this.getDs(), "physicalSpecimenId"));
+                    }
                 }
             }
         } catch (Exception e){

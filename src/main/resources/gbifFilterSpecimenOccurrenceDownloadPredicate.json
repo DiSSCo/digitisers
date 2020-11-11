@@ -8,11 +8,6 @@
 		"type": "and",
 		"predicates": [
 			{
-				"type": "equals",
-				"key": "TAXON_KEY",
-				"value": ""
-			},
-			{
 				"type": "or",
 				"predicates": [
 					{

@@ -15,6 +15,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.junit.Assert.*;
 
@@ -80,6 +82,13 @@ public class GbifClientTest {
         assertNull("The taxon shouldn't exist ", taxonId);
     }
 
+    @Test
+    public void getOccurrenceIdByGbifId() throws Exception {
+        String gbifId = "2595683050";
+        String occurrenceId = gbifClient.getOccurrenceIdByGbifId(gbifId);
+        assertEquals("The specimen occurenceId should be ", "http://www.botanicalcollections.be/specimen/BR5030107272357",occurrenceId);
+    }
+
     @Ignore("Test is ignored as it needs setting up the configuration file")
     @Test
     public void downloadOccurrencesByCanonicalNameAndKingdom() throws Exception {
@@ -94,6 +103,17 @@ public class GbifClientTest {
     public void downloadOccurrencesByTaxonId() throws Exception {
         String taxonId = "2685009";
         File dwcaFile = gbifClient.downloadOccurrencesByTaxonId(taxonId);
+        assertNotNull("The file should be downloaded correctly ", dwcaFile);
+    }
+
+    @Ignore("Test is ignored as it needs setting up the configuration file")
+    @Test
+    public void downloadOccurrencesByListOccurrenceIds() throws Exception {
+        List<String> occurrenceIds = new ArrayList<String>();
+        occurrenceIds.add("http://www.botanicalcollections.be/specimen/BR0000022456960");
+        occurrenceIds.add("http://www.botanicalcollections.be/specimen/BR0000025007091");
+        occurrenceIds.add("http://www.botanicalcollections.be/specimen/BR5030107272357");
+        File dwcaFile = gbifClient.downloadOccurrencesByListOccurrenceIds(occurrenceIds);
         assertNotNull("The file should be downloaded correctly ", dwcaFile);
     }
 
