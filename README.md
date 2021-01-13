@@ -1,4 +1,4 @@
-# Disco Digitiser #
+# DiSSCo Digitiser #
 
 ## Version 1.0.0 ##
 
